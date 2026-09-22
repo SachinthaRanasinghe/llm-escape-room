@@ -13,8 +13,9 @@ time, which keeps results from being memorized between runs.
 
 ## Status
 
-In build. The v0 contracts and the fixture corpus exist; the simulator, solver, provider adapters
-and replay player are the next wave and can be built in parallel against them.
+In build. The v0 contracts and the fixture corpus exist, the simulator resolves every action in the
+vocabulary, and the solver certifies a room before it is ever run. The provider adapters and the
+replay player are the remaining wave-2 work and can be built in parallel against the fixtures.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -33,6 +34,14 @@ The fixtures are the contract, not test data. They are what lets the simulator, 
 provider adapters and the replay player be built at the same time without any of them waiting for
 a backend to exist. Regenerate them with `node --import tsx scripts/generate-fixtures.mts` rather
 than editing by hand, so a run's summary can never drift from the log it summarises.
+
+`lib/solver/` is the gate in front of the generator. Given a room it proves five things before the
+room can be used: that someone who starts knowing nothing can escape it, that every answer can be
+read off its own clue, that no clue supports a second answer, that each answer genuinely unlocks the
+holder of the next clue, and that the declared difficulty is honest. It proves solvability by playing
+the room through the simulator itself, so a certified room is one the engine can really run. Rejection
+comes back as a machine-readable code, because the generator regenerates in a loop and needs to know
+which rule failed.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

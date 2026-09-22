@@ -2,7 +2,15 @@ import type { Competitor } from '@/lib/schema/run';
 import { buildPortableSpec, type PortableParam, type PortableSpec, type PortableTool } from './vocabulary';
 import { DEFAULT_DEPS, errorExcerpt, postJson } from './transport';
 import { count, isSyntheticCallId, rejectedTurn, syntheticCallId, turnFromCalls, type DecodeContext, type DecodedTurn } from './turn';
-import { ProviderError, type AdapterOptions, type ProviderAdapter, type ToolCall, type TurnRequest } from './types';
+import {
+  ProviderError,
+  type AdapterOptions,
+  type JsonCompletion,
+  type JsonRequest,
+  type ProviderAdapter,
+  type ToolCall,
+  type TurnRequest,
+} from './types';
 
 /**
  * The Gemini adapter — `models/{model}:generateContent` with forced function calls.
@@ -254,6 +262,55 @@ export function decodeGeminiResponse(status: number, json: unknown, context: Dec
     );
 
   return turnFromCalls(calls, text, tokens);
+}
+
+/* ── JSON mode, for the room generator — TICKET-5 (#6) ────────────────────
+ * `responseMimeType` only, no `responseSchema`: the proposal schema has unions
+ * and nullable fields the OpenAPI subset handles unevenly, and Zod on the
+ * generator's side is the real gate. `generationConfig` is therefore always
+ * present here, unlike in the adapter. */
+
+export function compileGeminiJsonRequest(request: JsonRequest, config: GeminiConfig): Record<string, unknown> {
+  return {
+    systemInstruction: { parts: [{ text: request.system }] },
+    contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      ...(config.params.temperature !== null ? { temperature: config.params.temperature } : {}),
+      ...(config.params.topP !== null ? { topP: config.params.topP } : {}),
+    },
+  };
+}
+
+/** A finish that leaves the JSON cut off or withheld — the model's failure, not the transport's. */
+const TRUNCATING_FINISHES = new Set(['MAX_TOKENS', 'SAFETY', 'RECITATION']);
+
+export function decodeGeminiJsonResponse(
+  status: number,
+  json: unknown,
+  { secrets = [], attempts = 1 }: Pick<DecodeContext, 'secrets' | 'attempts'>,
+): Omit<JsonCompletion, 'latencyMs' | 'attempts'> {
+  if (status < 200 || status >= 300) {
+    throw new ProviderError('gemini', status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
+  }
+
+  const body = (json ?? {}) as GeminiResponse;
+  const candidate = body.candidates?.[0];
+  const usage = body.usageMetadata;
+  const tokens = {
+    prompt: count(usage?.promptTokenCount),
+    completion: count(usage?.candidatesTokenCount) + count(usage?.thoughtsTokenCount),
+  };
+
+  const texts = (candidate?.content?.parts ?? [])
+    .filter((part) => typeof part.text === 'string' && part.thought !== true)
+    .map((part) => part.text!);
+  const text = texts.join('');
+
+  if (TRUNCATING_FINISHES.has(candidate?.finishReason ?? '') || text.length === 0) {
+    return { text: null, anomaly: 'invalid_json', tokens };
+  }
+  return { text, anomaly: null, tokens };
 }
 
 export function createGeminiAdapter({ apiKey, modelId, params, deps = DEFAULT_DEPS }: AdapterOptions): ProviderAdapter {

@@ -101,6 +101,39 @@ export interface ProviderAdapter {
 }
 
 /**
+ * ── The generation channel — TICKET-5 (#6) ─────────────────────────────────
+ * One JSON document out of one prompt, for the room generator. A sibling of
+ * `ProviderAdapter`, not a mode of it: see `generation.ts` for why.
+ */
+export interface JsonRequest {
+  readonly system: string;
+  /** Must mention "JSON" — Groq's JSON mode refuses a request whose messages do not. */
+  readonly prompt: string;
+}
+
+export interface JsonCompletion {
+  /** The model's text, meant to be one JSON object. `null` when there was none worth reading. */
+  readonly text: string | null;
+  /**
+   * The provider itself said the output was not valid JSON (Groq's
+   * `json_validate_failed`) or cut it off (Gemini's `MAX_TOKENS`). The model's
+   * failure, so it is an attempt the generator counts — not an exception.
+   */
+  readonly anomaly: 'invalid_json' | null;
+  readonly tokens: { readonly prompt: number; readonly completion: number };
+  /** Wall-clock ms of the successful attempt only, as for `ProviderTurn`. */
+  readonly latencyMs: number;
+  /** 1 + retries — the real call count the quota analysis (#8) needs. */
+  readonly attempts: number;
+}
+
+export interface GenerationClient {
+  readonly provider: Provider;
+  readonly modelId: string;
+  complete(request: JsonRequest): Promise<JsonCompletion>;
+}
+
+/**
  * The transport gave up, or the provider refused the request for a reason that
  * is not the model's fault (bad key, unknown model).
  *

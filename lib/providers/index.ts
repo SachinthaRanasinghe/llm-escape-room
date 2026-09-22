@@ -12,6 +12,11 @@ import type { AdapterOptions, ProviderAdapter } from './types';
  *   const turn = await adapter.act({ system, transcript });
  *   const { verdict } = sim.apply(turn.rawAction, { tokens: turn.tokens, elapsedMs: turn.latencyMs });
  *
+ * The generator (#6) uses a sibling, not an adapter — one JSON document per call:
+ *
+ *   const client = createGenerationClient(model, readProviderKey(model.provider));
+ *   const { text, anomaly, tokens, attempts } = await client.complete({ system, prompt });
+ *
  * `turn.rawAction` is handed over unexamined. A model's bad output is the
  * simulator's to score, as `malformed`, and it costs a turn. `act` throws only
  * `ProviderError`, and only when the transport gives up or the provider refuses
@@ -47,6 +52,7 @@ export function createAdapter(
   }
 }
 
+export { createGenerationClient } from './generation';
 export { createGroqAdapter } from './groq';
 export { createGeminiAdapter } from './gemini';
 export { readProviderKey, PROVIDER_KEY_VARS } from './env';
@@ -57,6 +63,9 @@ export type { Drift } from './equivalence';
 export { TURN_ANOMALIES, ProviderError } from './types';
 export type {
   AdapterOptions,
+  GenerationClient,
+  JsonCompletion,
+  JsonRequest,
   ProviderAdapter,
   ProviderTurn,
   ToolCall,

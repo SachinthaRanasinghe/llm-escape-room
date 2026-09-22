@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { createGroqAdapter } from './groq';
 import { createGeminiAdapter } from './gemini';
 import { readProviderKey } from './env';
+import { createGenerationClient } from './generation';
 import { ProviderError, type TurnRequest } from './types';
 import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './testing';
 
@@ -136,6 +137,34 @@ describe('adapter output carries no key and no endpoint', () => {
     });
     for (const adapter of [groq, gemini]) {
       const error = await adapter.act(request).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ProviderError);
+      clean(String(error));
+      clean(JSON.stringify(error));
+      clean((error as Error).stack ?? '');
+    }
+  });
+
+  it('generation client output and errors carry no key or endpoint', async () => {
+    const ok = [
+      createGenerationClient({ provider: 'groq', modelId: 'm', params }, GROQ_KEY, testDeps([
+        { status: 200, body: groqToolCallResponse([], undefined, '{"a":1}') },
+      ]).deps),
+      createGenerationClient({ provider: 'gemini', modelId: 'm', params }, GEMINI_KEY, testDeps([
+        { status: 200, body: geminiFunctionCallResponse([{ text: '{"a":1}' }]) },
+      ]).deps),
+    ];
+    for (const client of ok) clean(JSON.stringify(await client.complete({ system: 's', prompt: 'JSON' })));
+
+    const refused = [
+      createGenerationClient({ provider: 'groq', modelId: 'm', params }, GROQ_KEY, testDeps([
+        { status: 401, body: { error: { message: `Invalid API Key: ${GROQ_KEY}` } } },
+      ]).deps),
+      createGenerationClient({ provider: 'gemini', modelId: 'm', params }, GEMINI_KEY, testDeps([
+        { status: 400, body: { error: { message: `API key not valid ${GEMINI_KEY}` } } },
+      ]).deps),
+    ];
+    for (const client of refused) {
+      const error = await client.complete({ system: 's', prompt: 'JSON' }).catch((e: unknown) => e);
       expect(error).toBeInstanceOf(ProviderError);
       clean(String(error));
       clean(JSON.stringify(error));

@@ -2,7 +2,15 @@ import type { Competitor } from '@/lib/schema/run';
 import { buildPortableSpec, type PortableParam, type PortableSpec, type PortableTool } from './vocabulary';
 import { DEFAULT_DEPS, errorExcerpt, postJson } from './transport';
 import { count, rejectedTurn, syntheticCallId, turnFromCalls, type DecodeContext, type DecodedTurn } from './turn';
-import { ProviderError, type AdapterOptions, type ProviderAdapter, type ToolCall, type TurnRequest } from './types';
+import {
+  ProviderError,
+  type AdapterOptions,
+  type JsonCompletion,
+  type JsonRequest,
+  type ProviderAdapter,
+  type ToolCall,
+  type TurnRequest,
+} from './types';
 
 /**
  * The Groq adapter — OpenAI-compatible chat completions with forced tool calls.
@@ -215,6 +223,50 @@ export function decodeGroqResponse(status: number, json: unknown, context: Decod
   });
 
   return turnFromCalls(calls, message.content ?? null, tokens, unparseable);
+}
+
+/* ── JSON mode, for the room generator — TICKET-5 (#6) ────────────────────
+ * No tools and no tool_choice: the generator wants one document, not an action.
+ * See `generation.ts` for why this is a sibling of the adapter, not a mode of it. */
+
+export function compileGroqJsonRequest(request: JsonRequest, config: GroqConfig): Record<string, unknown> {
+  return {
+    model: config.modelId,
+    messages: [
+      { role: 'system', content: request.system },
+      { role: 'user', content: request.prompt },
+    ],
+    response_format: { type: 'json_object' },
+    ...(config.params.temperature !== null ? { temperature: config.params.temperature } : {}),
+    ...(config.params.topP !== null ? { top_p: config.params.topP } : {}),
+  };
+}
+
+export type DecodedJson = Omit<JsonCompletion, 'latencyMs' | 'attempts'>;
+
+export function decodeGroqJsonResponse(
+  status: number,
+  json: unknown,
+  { secrets = [], attempts = 1 }: Pick<DecodeContext, 'secrets' | 'attempts'>,
+): DecodedJson {
+  const body = (json ?? {}) as GroqResponse;
+
+  if (status === 400 && body.error?.code === 'json_validate_failed') {
+    // The model wrote something that is not JSON. Its failure, so an attempt —
+    // and `failed_generation` is deliberately dropped: untrusted text the
+    // generator has no use for.
+    return { text: null, anomaly: 'invalid_json', tokens: { prompt: 0, completion: 0 } };
+  }
+  if (status < 200 || status >= 300) {
+    throw new ProviderError('groq', status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
+  }
+
+  const content = body.choices?.[0]?.message?.content;
+  return {
+    text: typeof content === 'string' && content.length > 0 ? content : null,
+    anomaly: null,
+    tokens: { prompt: count(body.usage?.prompt_tokens), completion: count(body.usage?.completion_tokens) },
+  };
 }
 
 export function createGroqAdapter({ apiKey, modelId, params, deps = DEFAULT_DEPS }: AdapterOptions): ProviderAdapter {

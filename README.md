@@ -14,9 +14,9 @@ time, which keeps results from being memorized between runs.
 ## Status
 
 In build. The v0 contracts and the fixture corpus exist, the simulator resolves every action in the
-vocabulary, the solver certifies a room before it is ever run, and the provider adapters hand both
-models provably the same task. The replay player is the remaining wave-2 work and can be built
-against the fixtures.
+vocabulary, the solver certifies a room before it is ever run, the provider adapters hand both
+models provably the same task, and the generator writes fresh rooms that the solver has certified.
+The replay player can be built against the fixtures.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -52,6 +52,17 @@ drifts, `pnpm test` fails. A model's malformed output is never an exception: it 
 and costs a turn. Keys are read only in `lib/providers/env.ts`, from `GROQ_API_KEY` and
 `GEMINI_API_KEY` (see `.env.example`). To make one live call per provider, run
 `node --env-file-if-exists=.env --import tsx scripts/smoke-providers.mts`.
+
+`lib/generator/` is where rooms come from. A model proposes a room as JSON, the proposal is narrowed
+into a strict `RoomSpec`, and the solver certifies it or says which rules it broke. Those reasons go
+into the next attempt's prompt, up to a retry cap. Every attempt is counted, including the rejected
+ones, because they spend quota too. The record keeps rejection codes, tokens and real provider calls,
+but never an answer. Each accepted room carries a structural fingerprint that ignores its wording, so
+the variety metric compares puzzle skeletons, not prose. What kind of puzzle to ask for is a
+strategy selected by name. `symbolic` (digit codes, then one word from a closed list) ships now, and
+the gate spike adds the others. To generate one room from a live model, run
+`node --env-file-if-exists=.env --import tsx scripts/generate-room.mts --seed <seed>`. It writes the
+room and its attempt record under `runs/rooms/`.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

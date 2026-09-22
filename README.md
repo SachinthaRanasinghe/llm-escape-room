@@ -14,8 +14,9 @@ time, which keeps results from being memorized between runs.
 ## Status
 
 In build. The v0 contracts and the fixture corpus exist, the simulator resolves every action in the
-vocabulary, and the solver certifies a room before it is ever run. The provider adapters and the
-replay player are the remaining wave-2 work and can be built in parallel against the fixtures.
+vocabulary, the solver certifies a room before it is ever run, and the provider adapters hand both
+models provably the same task. The replay player is the remaining wave-2 work and can be built
+against the fixtures.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -42,6 +43,15 @@ holder of the next clue, and that the declared difficulty is honest. It proves s
 the room through the simulator itself, so a certified room is one the engine can really run. Rejection
 comes back as a machine-readable code, because the generator regenerates in a loop and needs to know
 which rule failed.
+
+`lib/providers/` is the fairness seam. The one action vocabulary is compiled into Groq's and Gemini's
+native tool-calling formats, and an equivalence test converts each compiled spec back into a neutral
+form and proves both models get the same tools, the same words, the same constraints and the same
+forced tool-calling mode, and that whatever either calls decodes to the same action. If either side
+drifts, `pnpm test` fails. A model's malformed output is never an exception: it reaches the simulator
+and costs a turn. Keys are read only in `lib/providers/env.ts`, from `GROQ_API_KEY` and
+`GEMINI_API_KEY` (see `.env.example`). To make one live call per provider, run
+`node --env-file-if-exists=.env --import tsx scripts/smoke-providers.mts`.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

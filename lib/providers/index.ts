@@ -1,0 +1,66 @@
+import type { Competitor } from '@/lib/schema/run';
+import { createGroqAdapter } from './groq';
+import { createGeminiAdapter } from './gemini';
+import type { AdapterOptions, ProviderAdapter } from './types';
+
+/**
+ * The provider adapters — TICKET-4 (#4).
+ *
+ * What #7 (the run harness) and #6 (the generator) import. One call per turn:
+ *
+ *   const adapter = createAdapter(competitor, readProviderKey(competitor.provider));
+ *   const turn = await adapter.act({ system, transcript });
+ *   const { verdict } = sim.apply(turn.rawAction, { tokens: turn.tokens, elapsedMs: turn.latencyMs });
+ *
+ * `turn.rawAction` is handed over unexamined. A model's bad output is the
+ * simulator's to score, as `malformed`, and it costs a turn. `act` throws only
+ * `ProviderError`, and only when the transport gives up or the provider refuses
+ * the request itself.
+ *
+ * ── What is deliberately NOT exported ──────────────────────────────────────
+ * `postJson`. A caller holding raw transport could post a request with
+ * `tool_choice: "auto"`, which is the fairness setting, and nothing would
+ * notice. Every request goes through an adapter's `compile*Request`, and
+ * `equivalence.test.ts` pins what those send.
+ *
+ * The `compile*` / `normalise*` / `decode*` internals. They exist to be proved
+ * equivalent, not to be called piecemeal by the harness.
+ *
+ * `testing.ts`. Test support, like `lib/solver/fuzz.ts`.
+ */
+
+export function createAdapter(
+  competitor: Pick<Competitor, 'provider' | 'modelId' | 'params'>,
+  apiKey: string,
+  deps?: AdapterOptions['deps'],
+): ProviderAdapter {
+  const options: AdapterOptions = { apiKey, modelId: competitor.modelId, params: competitor.params, deps };
+  switch (competitor.provider) {
+    case 'groq':
+      return createGroqAdapter(options);
+    case 'gemini':
+      return createGeminiAdapter(options);
+    default: {
+      const unreachable: never = competitor.provider;
+      throw new Error(`no adapter for provider ${String(unreachable)}`);
+    }
+  }
+}
+
+export { createGroqAdapter } from './groq';
+export { createGeminiAdapter } from './gemini';
+export { readProviderKey, PROVIDER_KEY_VARS } from './env';
+export { buildPortableSpec } from './vocabulary';
+export type { PortableSpec, PortableTool, PortableParam } from './vocabulary';
+export { findSpecDrift } from './equivalence';
+export type { Drift } from './equivalence';
+export { TURN_ANOMALIES, ProviderError } from './types';
+export type {
+  AdapterOptions,
+  ProviderAdapter,
+  ProviderTurn,
+  ToolCall,
+  TranscriptEntry,
+  TurnAnomaly,
+  TurnRequest,
+} from './types';

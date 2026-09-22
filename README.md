@@ -13,10 +13,12 @@ time, which keeps results from being memorized between runs.
 
 ## Status
 
-Pre-implementation. The product intent is written; no engineering decisions have been made yet.
+Pre-implementation. The product intent and the high-level architecture are written; no code yet.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
+- [`architecture.md`](./architecture.md) — the approach, stack, data shape, boundaries, and the
+  spikes that gate the build.
 
 ## What the MVP covers
 

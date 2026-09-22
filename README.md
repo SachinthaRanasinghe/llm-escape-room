@@ -13,12 +13,30 @@ time, which keeps results from being memorized between runs.
 
 ## Status
 
-Pre-implementation. The product intent and the high-level architecture are written; no code yet.
+In build. The v0 contracts and the fixture corpus exist; the simulator, solver, provider adapters
+and replay player are the next wave and can be built in parallel against them.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
 - [`architecture.md`](./architecture.md) — the approach, stack, data shape, boundaries, and the
   spikes that gate the build.
+- [`docs/tickets/llm-escape-room.md`](./docs/tickets/llm-escape-room.md) — the work sliced into
+  tickets and waves, mapped to GitHub issues.
+
+## Contracts
+
+`lib/schema/` holds the shapes everything else is built against — a room, an action, an event, a
+run — and `fixtures/` holds committed examples of each: one canonical room, one complete event log
+of two models diverging, and five rooms each broken in exactly one way.
+
+The fixtures are the contract, not test data. They are what lets the simulator, the solver, the
+provider adapters and the replay player be built at the same time without any of them waiting for
+a backend to exist. Regenerate them with `node --import tsx scripts/generate-fixtures.mts` rather
+than editing by hand, so a run's summary can never drift from the log it summarises.
+
+The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
+doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate
+actually separates two models. Expect exactly one migration.
 
 ## What the MVP covers
 

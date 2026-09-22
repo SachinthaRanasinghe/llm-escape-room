@@ -1,0 +1,64 @@
+{
+  "runVersion": 0,
+  "runId": "run-canonical-0001",
+  "roomId": "canonical-study",
+  "competitors": [
+    {
+      "id": "model-a",
+      "provider": "groq",
+      "modelId": "competitor-a",
+      "params": {
+        "temperature": 0,
+        "topP": null
+      }
+    },
+    {
+      "id": "model-b",
+      "provider": "groq",
+      "modelId": "competitor-b",
+      "params": {
+        "temperature": 0,
+        "topP": null
+      }
+    }
+  ],
+  "budget": {
+    "maxActions": 14,
+    "maxTokens": 60000,
+    "maxWallClockMs": 300000
+  },
+  "startedAt": "2026-09-22T10:00:00.000Z",
+  "summaries": [
+    {
+      "competitorId": "model-a",
+      "escaped": true,
+      "escapeActionCount": 13,
+      "escapeMs": 25380,
+      "puzzlesSolved": 3,
+      "failedAttempts": 0,
+      "invalidActions": 0,
+      "tokens": {
+        "prompt": 21580,
+        "completion": 571
+      },
+      "costUsd": 0,
+      "endedBecause": "escaped"
+    },
+    {
+      "competitorId": "model-b",
+      "escaped": false,
+      "escapeActionCount": null,
+      "escapeMs": null,
+      "puzzlesSolved": 2,
+      "failedAttempts": 2,
+      "invalidActions": 1,
+      "tokens": {
+        "prompt": 24220,
+        "completion": 626
+      },
+      "costUsd": 0,
+      "endedBecause": "budget_actions"
+    }
+  ],
+  "typicalOfRepeats": null
+}

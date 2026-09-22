@@ -1,0 +1,5 @@
+# Not a multi-package workspace: this repo is a single package (architecture.md
+# keeps the harness and the replay in one app). The file exists only to approve
+# the build scripts pnpm otherwise refuses to run — esbuild backs Vitest.
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,601 @@
+[
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 0,
+    "action": {
+      "name": "look",
+      "intent": "Survey everything first."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "A writing desk, a wall safe, a map cabinet, a shuttered window and a studded door."
+    },
+    "latencyMs": 1960,
+    "tokens": {
+      "prompt": 820,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:01.960Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 0,
+    "action": {
+      "name": "look",
+      "intent": "Get the shape of the room before touching anything."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "A writing desk, a wall safe, a map cabinet, a shuttered window and a studded door."
+    },
+    "latencyMs": 2140,
+    "tokens": {
+      "prompt": 820,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:02.140Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 1,
+    "action": {
+      "name": "inspect",
+      "targetId": "desk",
+      "intent": "The open drawer is the cheapest thing to check first."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The open drawer holds a ledger, and nothing else worth the trouble."
+    },
+    "latencyMs": 1680,
+    "tokens": {
+      "prompt": 960,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:03.820Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 1,
+    "action": {
+      "name": "inspect",
+      "targetId": "wall-safe",
+      "intent": "The safe is the most obviously important thing here."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The keypad takes four digits. The 7 is worn smooth."
+    },
+    "latencyMs": 2240,
+    "tokens": {
+      "prompt": 960,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:04.200Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 2,
+    "action": {
+      "name": "open",
+      "targetId": "desk",
+      "intent": "Take everything the drawer has before moving on."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The drawer slides out. It contains an accounts ledger."
+    },
+    "latencyMs": 1420,
+    "tokens": {
+      "prompt": 1100,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:05.240Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 3,
+    "action": {
+      "name": "take",
+      "targetId": "ledger",
+      "intent": "I want the ledger in hand so I can read it properly."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "You take the accounts ledger."
+    },
+    "latencyMs": 1260,
+    "tokens": {
+      "prompt": 1240,
+      "completion": 55
+    },
+    "at": "2026-09-22T10:00:06.500Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 2,
+    "action": {
+      "name": "enter_code",
+      "targetId": "wall-safe",
+      "code": "7777",
+      "intent": "The 7 is worn smooth, so the code may be all sevens."
+    },
+    "verdict": {
+      "ok": false,
+      "code": "wrong_code",
+      "message": "The keypad buzzes and resets."
+    },
+    "latencyMs": 3110,
+    "tokens": {
+      "prompt": 1100,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:07.310Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 4,
+    "action": {
+      "name": "inspect",
+      "targetId": "ledger",
+      "intent": "A ledger in a room with a keypad probably holds the number."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Columns of harbour dues. The final column totals 4471."
+    },
+    "latencyMs": 2310,
+    "tokens": {
+      "prompt": 1380,
+      "completion": 64
+    },
+    "at": "2026-09-22T10:00:08.810Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 3,
+    "action": {
+      "name": "inspect",
+      "targetId": "window",
+      "intent": "Maybe the way out is not the door at all."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Nailed shut from the outside. Not the way."
+    },
+    "latencyMs": 1720,
+    "tokens": {
+      "prompt": 1240,
+      "completion": 55
+    },
+    "at": "2026-09-22T10:00:09.030Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 5,
+    "action": {
+      "name": "open",
+      "targetId": "wall-safe",
+      "intent": "Worth checking whether the safe is even locked before I spend a guess."
+    },
+    "verdict": {
+      "ok": false,
+      "code": "locked",
+      "message": "The safe does not budge. The keypad waits."
+    },
+    "latencyMs": 1890,
+    "tokens": {
+      "prompt": 1520,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:10.700Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 4,
+    "action": {
+      "name": "inspect",
+      "targetId": "desk",
+      "intent": "Falling back to searching the furniture."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The open drawer holds a ledger, and nothing else worth the trouble."
+    },
+    "latencyMs": 1880,
+    "tokens": {
+      "prompt": 1380,
+      "completion": 64
+    },
+    "at": "2026-09-22T10:00:10.910Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 6,
+    "action": {
+      "name": "enter_code",
+      "targetId": "wall-safe",
+      "code": "4471",
+      "intent": "The ledger total is four digits and the keypad wants four."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Four tones, then a heavy click. The safe is unlocked."
+    },
+    "latencyMs": 2460,
+    "tokens": {
+      "prompt": 1660,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:13.160Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 5,
+    "action": {
+      "name": "inspect",
+      "targetId": "ledger",
+      "intent": "Read the ledger properly."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Columns of harbour dues. The final column totals 4471."
+    },
+    "latencyMs": 2530,
+    "tokens": {
+      "prompt": 1520,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:13.440Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 7,
+    "action": {
+      "name": "open",
+      "targetId": "wall-safe",
+      "intent": "Open it and see what the safe was protecting."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Inside is a rolled sea chart."
+    },
+    "latencyMs": 1340,
+    "tokens": {
+      "prompt": 1800,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:14.500Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 6,
+    "action": {
+      "name": "enter_code",
+      "targetId": "wall-safe",
+      "code": "4471",
+      "intent": "That total is the four digits the keypad wanted."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Four tones, then a heavy click. The safe is unlocked."
+    },
+    "latencyMs": 2270,
+    "tokens": {
+      "prompt": 1660,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:15.710Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 8,
+    "action": {
+      "name": "inspect",
+      "targetId": "sea-chart",
+      "intent": "The chart is the only new thing, so the next clue is on it."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "A chart of the coastal survey. The cartouche reads, in a careful hand, 1770."
+    },
+    "latencyMs": 2620,
+    "tokens": {
+      "prompt": 1940,
+      "completion": 55
+    },
+    "at": "2026-09-22T10:00:17.120Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 7,
+    "action": {
+      "name": "open",
+      "targetId": "wall-safe",
+      "intent": "See what is inside."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Inside is a rolled sea chart."
+    },
+    "latencyMs": 1410,
+    "tokens": {
+      "prompt": 1800,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:17.120Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 9,
+    "action": {
+      "name": "enter_code",
+      "targetId": "cabinet",
+      "code": "1770",
+      "intent": "A four-digit dial and a four-digit year on the chart."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The dial gives. The cabinet is unlocked."
+    },
+    "latencyMs": 2180,
+    "tokens": {
+      "prompt": 2080,
+      "completion": 64
+    },
+    "at": "2026-09-22T10:00:19.300Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 8,
+    "action": {
+      "name": "inspect",
+      "targetId": "bookshelf",
+      "intent": "Check the bookshelf for the next clue."
+    },
+    "verdict": {
+      "ok": false,
+      "code": "not_found",
+      "message": "There is no bookshelf in this room."
+    },
+    "latencyMs": 2890,
+    "tokens": {
+      "prompt": 1940,
+      "completion": 55
+    },
+    "at": "2026-09-22T10:00:20.010Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 10,
+    "action": {
+      "name": "open",
+      "targetId": "cabinet",
+      "intent": "Same pattern as the safe: unlock, then open."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The cabinet slides open. A surveyor's logbook lies flat inside."
+    },
+    "latencyMs": 1290,
+    "tokens": {
+      "prompt": 2220,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:20.590Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 9,
+    "action": {
+      "name": "inspect",
+      "targetId": "sea-chart",
+      "intent": "Read the chart that was in the safe."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "A chart of the coastal survey. The cartouche reads, in a careful hand, 1770."
+    },
+    "latencyMs": 2610,
+    "tokens": {
+      "prompt": 2080,
+      "completion": 64
+    },
+    "at": "2026-09-22T10:00:22.620Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 11,
+    "action": {
+      "name": "inspect",
+      "targetId": "logbook",
+      "intent": "The door asked which way out, so I need a direction."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "Every entry closes the same way: \"departed, as always, to the north.\""
+    },
+    "latencyMs": 2740,
+    "tokens": {
+      "prompt": 2360,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:23.330Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-a",
+    "seq": 12,
+    "action": {
+      "name": "submit_answer",
+      "puzzleId": "p3",
+      "answer": "north",
+      "intent": "The logbook answers the door’s question directly."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The brass plate turns. The door opens northward onto stairs."
+    },
+    "latencyMs": 2050,
+    "tokens": {
+      "prompt": 2500,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:25.380Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 10,
+    "action": {
+      "name": "enter_code",
+      "targetId": "cabinet",
+      "code": "4471",
+      "intent": "Reuse the code that already worked once."
+    },
+    "verdict": {
+      "ok": false,
+      "code": "wrong_code",
+      "message": "The dial springs back."
+    },
+    "latencyMs": 3340,
+    "tokens": {
+      "prompt": 2220,
+      "completion": 28
+    },
+    "at": "2026-09-22T10:00:25.960Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 11,
+    "action": {
+      "name": "open",
+      "targetId": "cabinet",
+      "intent": "Try forcing it rather than guessing again."
+    },
+    "verdict": {
+      "ok": false,
+      "code": "locked",
+      "message": "The cabinet holds fast."
+    },
+    "latencyMs": 2120,
+    "tokens": {
+      "prompt": 2360,
+      "completion": 37
+    },
+    "at": "2026-09-22T10:00:28.080Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 12,
+    "action": {
+      "name": "enter_code",
+      "targetId": "cabinet",
+      "code": "1770",
+      "intent": "The year on the chart is the only other four-digit number I have."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The dial gives. The cabinet is unlocked."
+    },
+    "latencyMs": 2980,
+    "tokens": {
+      "prompt": 2500,
+      "completion": 46
+    },
+    "at": "2026-09-22T10:00:31.060Z"
+  },
+  {
+    "logVersion": 0,
+    "runId": "run-canonical-0001",
+    "competitorId": "model-b",
+    "seq": 13,
+    "action": {
+      "name": "open",
+      "targetId": "cabinet",
+      "intent": "Open it and read whatever is inside."
+    },
+    "verdict": {
+      "ok": true,
+      "code": "ok",
+      "message": "The cabinet slides open. A surveyor's logbook lies flat inside."
+    },
+    "latencyMs": 1530,
+    "tokens": {
+      "prompt": 2640,
+      "completion": 55
+    },
+    "at": "2026-09-22T10:00:32.590Z"
+  }
+]

@@ -19,6 +19,13 @@ node_modules/
 dist/
 build/
 .cache/
+
+# Next
+.next/
+next-env.d.ts
+
+# TypeScript
+*.tsbuildinfo
 *.log
 npm-debug.log*
 pnpm-debug.log*

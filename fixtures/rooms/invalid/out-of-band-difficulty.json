@@ -1,0 +1,136 @@
+{
+  "specVersion": 0,
+  "seed": "canonical-room-v0",
+  "roomId": "invalid-out-of-band-difficulty",
+  "theme": {
+    "name": "The Cartographer's Study",
+    "description": "A narrow study above a harbour office, smelling of ink and damp paper."
+  },
+  "objects": [
+    {
+      "id": "desk",
+      "name": "writing desk",
+      "description": "A writing desk, its drawer hanging open.",
+      "kind": "container",
+      "lock": null,
+      "contains": [
+        "ledger"
+      ],
+      "clueText": "The open drawer holds a ledger, and nothing else worth the trouble."
+    },
+    {
+      "id": "ledger",
+      "name": "accounts ledger",
+      "description": "A leather ledger, swollen with damp.",
+      "kind": "portable",
+      "lock": null,
+      "contains": [],
+      "clueText": "Columns of harbour dues. The final column totals 4471."
+    },
+    {
+      "id": "wall-safe",
+      "name": "wall safe",
+      "description": "A squat iron safe set into the plaster, with a four-digit keypad.",
+      "kind": "lock",
+      "lock": {
+        "opensWith": "code",
+        "code": "4471"
+      },
+      "contains": [
+        "sea-chart"
+      ],
+      "clueText": "The keypad takes four digits. The 7 is worn smooth."
+    },
+    {
+      "id": "sea-chart",
+      "name": "sea chart",
+      "description": "A rolled chart, edges furred with age.",
+      "kind": "portable",
+      "lock": null,
+      "contains": [],
+      "clueText": "A chart of the coastal survey. The cartouche reads, in a careful hand, 1770."
+    },
+    {
+      "id": "cabinet",
+      "name": "map cabinet",
+      "description": "A shallow map cabinet with a numbered dial.",
+      "kind": "container",
+      "lock": {
+        "opensWith": "code",
+        "code": "1770"
+      },
+      "contains": [
+        "logbook"
+      ],
+      "clueText": "The dial runs 0000 to 9999. It turns stiffly."
+    },
+    {
+      "id": "logbook",
+      "name": "surveyor's logbook",
+      "description": "A slim logbook, every page ruled by hand.",
+      "kind": "portable",
+      "lock": null,
+      "contains": [],
+      "clueText": "Every entry closes the same way: \"departed, as always, to the north.\""
+    },
+    {
+      "id": "door",
+      "name": "studded door",
+      "description": "A studded oak door. It has no keyhole and no handle.",
+      "kind": "door",
+      "lock": null,
+      "contains": [],
+      "clueText": "No keyhole, no handle. Only a brass plate asking a question: which way out?"
+    },
+    {
+      "id": "window",
+      "name": "shuttered window",
+      "description": "A window, shuttered and nailed fast.",
+      "kind": "fixture",
+      "lock": null,
+      "contains": [],
+      "clueText": "Nailed shut from the outside. Not the way."
+    }
+  ],
+  "puzzles": [
+    {
+      "id": "p1",
+      "order": 1,
+      "kind": "code",
+      "clueObjectId": "ledger",
+      "answer": "4471",
+      "unlocksObjectId": "wall-safe"
+    },
+    {
+      "id": "p2",
+      "order": 2,
+      "kind": "code",
+      "clueObjectId": "sea-chart",
+      "answer": "1770",
+      "unlocksObjectId": "cabinet"
+    },
+    {
+      "id": "p3",
+      "order": 3,
+      "kind": "answer",
+      "clueObjectId": "logbook",
+      "answer": "north",
+      "unlocksObjectId": "door"
+    }
+  ],
+  "exit": {
+    "objectId": "door",
+    "requiresPuzzleId": "p3"
+  },
+  "difficulty": {
+    "band": "easy",
+    "estimatedActions": 400
+  },
+  "solution": {
+    "order": [
+      "p1",
+      "p2",
+      "p3"
+    ]
+  }
+}

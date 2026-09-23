@@ -149,7 +149,7 @@ describe('whatever a model calls decodes to the same action in both dialects', (
     { name: 'use', itemId: 'brass-key', targetId: 'cabinet', intent: 'The key looks cabinet-sized.' },
     { name: 'submit_answer', puzzleId: 'p3', answer: 'north', intent: 'The rose points north.' },
   ];
-  const cases: Action[] = [...loadCanonicalLog().map((event) => event.action), ...synthetic];
+  const cases: Action[] = [...loadCanonicalLog().map((event) => event.action!), ...synthetic]; // golden log: no null actions;
 
   it('covers every verb in the vocabulary', () => {
     expect(new Set(cases.map((action) => action.name))).toEqual(new Set(ACTION_NAMES));

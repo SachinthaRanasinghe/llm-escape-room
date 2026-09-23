@@ -15,7 +15,8 @@ time, which keeps results from being memorized between runs.
 
 In build. The v0 contracts and the fixture corpus exist, the simulator resolves every action in the
 vocabulary, the solver certifies a room before it is ever run, the provider adapters hand both
-models provably the same task, and the generator writes fresh rooms that the solver has certified.
+models provably the same task, the generator writes fresh rooms that the solver has certified, and
+the harness races two models through one of them and writes the event log.
 The replay player can be built against the fixtures.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
@@ -63,6 +64,18 @@ strategy selected by name. `symbolic` (digit codes, then one word from a closed 
 the gate spike adds the others. To generate one room from a live model, run
 `node --env-file-if-exists=.env --import tsx scripts/generate-room.mts --seed <seed>`. It writes the
 room and its attempt record under `runs/rooms/`.
+
+`lib/harness/` runs the duel. Both models race the same certified room at the same time, each
+against its own simulator, so neither can walk through a door the other opened. Every action a model
+attempts becomes one event in an append-only log, including malformed ones. A malformed turn still
+costs a turn, so it is logged with what the model actually sent and never with an action or intent the
+harness made up. The run record adds what the simulator cannot know: what the run cost. A matchup
+is one published run plus silent repeats of the same room, and the record says whether the published
+outcome was typical of them. If a provider fails during the published run, nothing is published; a
+repeat whose provider fails is dropped. A contract test replays the golden log through the harness
+and must reproduce the committed run exactly. To run a live matchup against the fixture room, run
+`node --env-file-if-exists=.env --import tsx scripts/run.mts` (add `--room runs/rooms/<id>.json` for a
+generated one). It writes the run, its log and its repeats under `runs/<runId>/`.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

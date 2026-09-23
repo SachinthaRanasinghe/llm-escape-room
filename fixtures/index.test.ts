@@ -72,7 +72,9 @@ describe('the canonical event log', () => {
 
   it('carries a non-empty intent on every single action', () => {
     for (const event of loadCanonicalLog()) {
-      expect(event.action.intent.length).toBeGreaterThan(0);
+      // The golden log has no malformed turns, so every event carries an action.
+      expect(event.action).not.toBeNull();
+      expect(event.action!.intent.length).toBeGreaterThan(0);
     }
   });
 
@@ -91,7 +93,7 @@ describe('the canonical event log', () => {
 
   it('records both competitors diverging — one escapes, one does not', () => {
     const log = loadCanonicalLog();
-    const escapes = log.filter((e) => e.action.name === 'submit_answer' && e.verdict.ok);
+    const escapes = log.filter((e) => e.action?.name === 'submit_answer' && e.verdict.ok);
     expect(escapes).toHaveLength(1);
     expect(escapes[0]!.competitorId).toBe('model-a');
   });
@@ -195,7 +197,7 @@ describe('log and room agree', () => {
 
     for (const event of loadCanonicalLog()) {
       const action = event.action;
-      if ('targetId' in action && !ids.has(action.targetId)) missing.add(action.targetId);
+      if (action !== null && 'targetId' in action && !ids.has(action.targetId)) missing.add(action.targetId);
     }
 
     // Exactly one: model-b inspects a bookshelf that does not exist, which is the

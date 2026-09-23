@@ -53,7 +53,7 @@ describe('the golden log replays through the simulator', () => {
 
       expect(
         result.verdict.code,
-        `seq ${event.seq} (${event.action.name}) expected ${event.verdict.code}, got ${result.verdict.code}`,
+        `seq ${event.seq} (${event.action?.name}) expected ${event.verdict.code}, got ${result.verdict.code}`,
       ).toBe(event.verdict.code);
       expect(result.verdict.ok).toBe(event.verdict.ok);
       expect(result.action).not.toBeNull();
@@ -121,9 +121,9 @@ describe('the golden log replays through the simulator', () => {
    */
   it('lets model-b read the ledger without ever opening the desk', () => {
     const events = eventsFor('model-b');
-    const readsLedger = events.find((e) => e.action.name === 'inspect' && e.action.targetId === 'ledger');
+    const readsLedger = events.find((e) => e.action?.name === 'inspect' && e.action.targetId === 'ledger');
     expect(readsLedger?.verdict.code).toBe('ok');
-    expect(events.some((e) => e.action.name === 'open' && e.action.targetId === 'desk')).toBe(false);
+    expect(events.some((e) => e.action?.name === 'open' && e.action.targetId === 'desk')).toBe(false);
 
     const simulator = createSimulator({ spec: room, budget: run.budget, competitorId: 'model-b' });
     expect(simulator.apply({ name: 'inspect', targetId: 'ledger', intent: 'read it' }, {

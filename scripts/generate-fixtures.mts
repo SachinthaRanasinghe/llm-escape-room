@@ -126,7 +126,7 @@ function summarise(competitorId: string, escaped: boolean): RunSummary {
     escapeActionCount: escaped ? mine.length : null,
     escapeMs: escaped ? totalMs : null,
     puzzlesSolved: mine.filter(
-      (e) => e.verdict.ok && (e.action.name === 'enter_code' || e.action.name === 'submit_answer'),
+      (e) => e.verdict.ok && (e.action?.name === 'enter_code' || e.action?.name === 'submit_answer'),
     ).length,
     failedAttempts: mine.filter(
       (e) => e.verdict.code === 'wrong_code' || e.verdict.code === 'wrong_answer',

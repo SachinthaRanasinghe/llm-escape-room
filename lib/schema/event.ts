@@ -26,15 +26,63 @@ import { ActionSchema, VerdictSchema } from './action';
  * `intent` is a required field of every `Action`, so it is NOT repeated at the
  * event level. Storing it twice would let the two copies disagree, and the whole
  * value of an in-band intent is that it cannot drift from the action it explains.
- * Read it as `event.action.intent`.
+ * Read it as `event.action?.intent ?? event.rejected?.intent`.
+ *
+ * ── A malformed turn is still an event ─────────────────────────────────────
+ * When a model sends something that is not an action — no tool call, two of
+ * them, arguments that are not JSON, or a call that fails `ActionSchema` — the
+ * simulator scores it `malformed` and CHARGES THE TURN. It therefore has to be in
+ * the log: `findSeqBreaks` would otherwise report a gap for every one, and the
+ * published invalid-action count would disagree with the log it summarises.
+ *
+ * Such an event has `action: null` and a `rejected` block saying what kind of
+ * failure it was and what the model actually sent. The harness never invents an
+ * action to fill the slot, and never invents an intent: `rejected.intent` is set
+ * only when the model's own payload carried one that fits the schema.
+ *
+ * `rejected` is optional rather than `nullable` — against the "absence is a
+ * value" habit in `run.ts` — so that the committed golden log, which has no
+ * malformed turns, still parses without being regenerated. The refinement below
+ * makes the pairing exact: a null action needs `rejected`, and only a null action
+ * may have it.
  */
+
+/**
+ * Why there was no action. The first four mirror `TURN_ANOMALIES` in
+ * `lib/providers/types.ts` — copied, not imported, because the schema is on the
+ * artifact side and must never import the providers (`secrets.test.ts`).
+ * `invalid_arguments` is a single, parseable tool call that `ActionSchema` still
+ * refused: a missing intent, an unknown verb, an extra key.
+ */
+export const REJECTION_KINDS = [
+  'no_tool_call',
+  'multiple_tool_calls',
+  'unparseable_arguments',
+  'provider_rejected_call',
+  'invalid_arguments',
+] as const;
+
+/** Long enough to show what went wrong, short enough that one bad turn cannot bloat a published log. */
+export const RAW_EXCERPT_MAX = 1000;
+
+export const RejectedSchema = z.strictObject({
+  kind: z.enum(REJECTION_KINDS),
+  /** What the model sent, JSON-stringified and cut to `RAW_EXCERPT_MAX`. Model output, never harness prose. */
+  raw: z.string().max(RAW_EXCERPT_MAX),
+  /** An intent the model DID write, lifted verbatim from its payload when one was there. Never invented. */
+  intent: z.string().min(1).max(280).nullable(),
+});
+
+export type Rejected = z.infer<typeof RejectedSchema>;
 export const EventSchema = z.strictObject({
   logVersion: LogVersionSchema,
   runId: z.string().min(1),
   competitorId: z.string().min(1),
   /** 0-based, contiguous per competitor. See `assertContiguousSeq`. */
   seq: z.number().int().nonnegative(),
-  action: ActionSchema,
+  /** `null` exactly when the turn produced no valid action — see `rejected`. */
+  action: ActionSchema.nullable(),
+  rejected: RejectedSchema.optional(),
   verdict: VerdictSchema,
   /**
    * Real wall-clock time the model took to produce this action, in milliseconds.
@@ -49,6 +97,14 @@ export const EventSchema = z.strictObject({
   }),
   /** ISO 8601. When this action was resolved. */
   at: z.iso.datetime(),
+}).superRefine((event, ctx) => {
+  if ((event.action === null) !== (event.rejected !== undefined)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['rejected'],
+      message: 'a null action needs a rejected block, and only a null action may have one',
+    });
+  }
 });
 
 export type Event = z.infer<typeof EventSchema>;

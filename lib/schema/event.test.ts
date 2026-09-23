@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LOG_VERSION } from './version';
-import { EventLogError, EventSchema, findSeqBreaks, parseEventLog, type Event } from './event';
+import { loadCanonicalLog } from '@/fixtures';
+import { EventLogError, EventSchema, RAW_EXCERPT_MAX, findSeqBreaks, parseEventLog, type Event } from './event';
 
 function event(overrides: Partial<Event> = {}): Event {
   return {
@@ -40,7 +41,7 @@ describe('EventSchema', () => {
 
   it('reads intent from the action, never duplicated at the event level', () => {
     const e = event();
-    expect(e.action.intent).toBe('Get my bearings.');
+    expect(e.action?.intent).toBe('Get my bearings.');
     expect(Object.keys(e)).not.toContain('intent');
   });
 
@@ -123,5 +124,48 @@ describe('findSeqBreaks', () => {
 
   it('accepts an empty log', () => {
     expect(findSeqBreaks([])).toEqual([]);
+  });
+});
+
+describe('a malformed turn', () => {
+  const malformedVerdict = { ok: false, code: 'malformed', message: 'That is not a valid action.' } as const;
+  const rejected = { kind: 'no_tool_call', raw: 'I think I should look around.', intent: null } as const;
+
+  it('is an event with a null action and a rejected block', () => {
+    const e = event({ seq: 3, action: null, rejected, verdict: malformedVerdict });
+    expect(EventSchema.parse(e)).toEqual(e);
+  });
+
+  it('refuses a null action without a rejected block', () => {
+    expect(EventSchema.safeParse(event({ action: null, verdict: malformedVerdict })).success).toBe(false);
+  });
+
+  it('refuses a rejected block on a valid action', () => {
+    expect(EventSchema.safeParse(event({ rejected })).success).toBe(false);
+  });
+
+  it('caps the raw excerpt', () => {
+    const long = { ...rejected, raw: 'x'.repeat(RAW_EXCERPT_MAX + 1) };
+    expect(EventSchema.safeParse(event({ action: null, rejected: long, verdict: malformedVerdict })).success).toBe(false);
+  });
+
+  it('refuses an empty lifted intent — absent is null, not ""', () => {
+    const empty = { ...rejected, intent: '' };
+    expect(EventSchema.safeParse(event({ action: null, rejected: empty, verdict: malformedVerdict })).success).toBe(false);
+  });
+
+  it('refuses an unknown rejection kind', () => {
+    const unknown = { ...rejected, kind: 'bored' } as unknown as typeof rejected;
+    expect(EventSchema.safeParse(event({ action: null, rejected: unknown, verdict: malformedVerdict })).success).toBe(false);
+  });
+
+  it('counts toward seq like any other turn', () => {
+    const log = [event({ seq: 0 }), event({ seq: 1, action: null, rejected, verdict: malformedVerdict }), event({ seq: 2 })];
+    expect(findSeqBreaks(parseEventLog(log))).toEqual([]);
+  });
+
+  it('leaves the golden log valid — it has no malformed turns and no rejected blocks', () => {
+    const log = loadCanonicalLog();
+    expect(log.every((e) => e.action !== null && e.rejected === undefined)).toBe(true);
   });
 });

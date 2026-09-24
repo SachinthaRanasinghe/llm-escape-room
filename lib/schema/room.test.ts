@@ -94,6 +94,16 @@ describe('RoomSpecSchema', () => {
       RoomSpecSchema.safeParse({ ...room, difficulty: { band: 'nightmare', estimatedActions: 12 } }).success,
     ).toBe(false);
   });
+
+  it('accepts a key puzzle — TICKET-7 (#8) widened v0 for the spatial substrate', () => {
+    const puzzles = [{ ...room.puzzles[0]!, kind: 'key', answer: 'brass-key' }];
+    expect(RoomSpecSchema.safeParse({ ...room, puzzles }).success).toBe(true);
+  });
+
+  it('still rejects an unknown puzzle kind', () => {
+    const puzzles = [{ ...room.puzzles[0]!, kind: 'riddle' }];
+    expect(RoomSpecSchema.safeParse({ ...room, puzzles }).success).toBe(false);
+  });
 });
 
 describe('LockSchema', () => {

@@ -21,8 +21,16 @@
 export { generateRoom, GenerationAbortedError, DEFAULT_MAX_ATTEMPTS } from './generate';
 export type { GenerateOptions, GenerationResult } from './generate';
 
-export { STRATEGIES, resolveStrategy, createSymbolicStrategy, chainLengthsFor, MAX_CHAIN_LENGTH } from './strategies';
-export type { SymbolicOptions } from './strategies';
+export {
+  STRATEGIES,
+  resolveStrategy,
+  createSymbolicStrategy,
+  createSpatialStrategy,
+  createMixedStrategy,
+  chainLengthsFor,
+  MAX_CHAIN_LENGTH,
+} from './strategies';
+export type { SymbolicOptions, SpatialOptions, MixedOptions } from './strategies';
 
 export { fingerprintRoom, differsFrom, RoomFingerprintSchema } from './fingerprint';
 export type { RoomFingerprint } from './fingerprint';

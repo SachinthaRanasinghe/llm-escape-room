@@ -44,6 +44,14 @@ export interface Observation {
  *    un-actionable — the competitor must not learn that it EXISTS. Knowing a sea
  *    chart is in there is most of the puzzle.
  * 3. Contents of containers. `open` is what names them, and `open` costs a turn.
+ *
+ * ── What it deliberately INCLUDES: ids ─────────────────────────────────────
+ * Every object a competitor is told about is named with its id, as `name [id]`
+ * — the convention `lib/harness/prompt.ts` sets in the opening message. Before
+ * TICKET-7 (#8) only that opening message carried ids, so a model had to GUESS
+ * the id of anything it found later, and `invalidActions` measured id-guessing
+ * rather than play (`.claude/reports/run-harness-report.md`). An id is not a
+ * secret: it only names what the competitor is already allowed to see.
  */
 export function visibleObjects(state: RoomState): VisibleObject[] {
   return topLevelObjects(state)
@@ -76,6 +84,11 @@ export function observe(state: RoomState, actionsRemaining: number): Observation
   };
 }
 
+/** How a competitor is told about an object: `writing desk [desk]`. */
+export function labelOf(object: { readonly id: string; readonly name: string }): string {
+  return `${object.name} [${object.id}]`;
+}
+
 /** Join names the way a sentence would: "a, b and c". */
 function sentenceList(parts: string[]): string {
   if (parts.length === 0) return 'nothing';
@@ -97,7 +110,7 @@ function sentenceList(parts: string[]): string {
 export function describeRoom(state: RoomState): string {
   const visible = visibleObjects(state);
   const held = heldObjects(state);
-  const names = sentenceList(visible.map((object) => object.name));
-  const carried = held.length > 0 ? ` You are carrying ${sentenceList(held.map((h) => h.name))}.` : '';
+  const names = sentenceList(visible.map(labelOf));
+  const carried = held.length > 0 ? ` You are carrying ${sentenceList(held.map(labelOf))}.` : '';
   return `You see ${names}.${carried}`;
 }

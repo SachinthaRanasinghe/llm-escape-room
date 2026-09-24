@@ -38,12 +38,19 @@ type Tally = 'none' | 'failed' | 'invalid';
  * - **none** — `locked` is neither. Trying a door to find out whether it is
  *   locked is legitimate play, and model-a does exactly that at `seq 5` while
  *   scoring zero of both. Penalising it would punish careful play.
+ *
+ * `wrong_key` (TICKET-7, #8) is **failed**: it is the key-lock analogue of
+ * `wrong_code` — the model used the interface correctly and chose the wrong key.
+ * Before it existed a wrong key came back `locked`, which scores nothing, so on
+ * a room full of decoy keys every mistake was invisible in exactly the metrics
+ * the substrate spike compares.
  */
 export const VERDICT_TALLY: Readonly<Record<VerdictCode, Tally>> = {
   ok: 'none',
   locked: 'none',
   wrong_answer: 'failed',
   wrong_code: 'failed',
+  wrong_key: 'failed',
   not_found: 'invalid',
   not_holding: 'invalid',
   malformed: 'invalid',

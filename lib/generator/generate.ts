@@ -6,7 +6,12 @@ import { createRng } from '@/lib/rng';
 import type { RoomSpec } from '@/lib/schema/room';
 import { verifySpec, type SolverReport } from '@/lib/solver';
 import { fingerprintRoom, type RoomFingerprint } from './fingerprint';
-import { parseGenerationRecord, type GenerationAttempt, type GenerationRecord } from './record';
+import {
+  GENERATION_RECORD_VERSION,
+  parseGenerationRecord,
+  type GenerationAttempt,
+  type GenerationRecord,
+} from './record';
 import type { AttemptFeedback, GeneratorStrategy } from './types';
 
 /**
@@ -93,14 +98,14 @@ export async function generateRoom(options: GenerateOptions): Promise<Generation
 
   const record = (fingerprint: RoomFingerprint | null): GenerationRecord =>
     parseGenerationRecord({
-      generationRecordVersion: 0,
+      generationRecordVersion: GENERATION_RECORD_VERSION,
       strategy: strategy.name,
       seed,
       roomId,
       provider: client.provider,
       modelId: client.modelId,
       maxAttempts,
-      brief: { ...brief, codeWidths: [...brief.codeWidths] },
+      brief: { ...brief, linkKinds: [...brief.linkKinds], codeWidths: [...brief.codeWidths] },
       attempts,
       totals: {
         attempts: attempts.length,

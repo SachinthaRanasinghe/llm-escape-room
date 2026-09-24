@@ -96,6 +96,8 @@ export const VERDICT_CODES = [
   'locked',
   'wrong_answer',
   'wrong_code',
+  /** The competitor used a key that does not fit. Added by TICKET-7 (#8); see `VERDICT_TALLY`. */
+  'wrong_key',
   'not_holding',
   'malformed',
   'not_permitted',

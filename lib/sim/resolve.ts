@@ -1,6 +1,6 @@
 import type { Action, Verdict, VerdictCode } from '@/lib/schema/action';
 import type { Puzzle, RoomObject } from '@/lib/schema/room';
-import { describeRoom } from './observation';
+import { describeRoom, labelOf } from './observation';
 import {
   contentsOf,
   isLocked,
@@ -105,6 +105,26 @@ function checkEscape(state: RoomState): RoomState {
   return state.solved.has(state.spec.exit.requiresPuzzleId) ? withEscaped(state) : state;
 }
 
+/**
+ * Where a competitor learns a puzzle id — the one thing `submit_answer` needs
+ * that no object id supplies.
+ *
+ * Before TICKET-7 (#8) nothing ever said "p3", so a model could only guess it
+ * (`.claude/reports/run-harness-report.md`). The hint is attached to `inspect`
+ * of an unsolved `answer` puzzle's clue object AND of the thing that answer
+ * opens, because either is where a player would stop and wonder what to say.
+ *
+ * It names the puzzle id and never the answer. Code and key puzzles get no hint:
+ * they are solved on a lock whose id the competitor already has.
+ */
+function answerHint(state: RoomState, objectId: string): string {
+  const ids = state.spec.puzzles
+    .filter((p) => p.kind === 'answer' && !state.solved.has(p.id))
+    .filter((p) => p.clueObjectId === objectId || p.unlocksObjectId === objectId)
+    .map((p) => `"${p.id}"`);
+  return ids.length === 0 ? '' : ` (Answer it with submit_answer, puzzleId ${ids.join(' or ')}.)`;
+}
+
 function puzzleById(state: RoomState, id: string): Puzzle | undefined {
   return state.spec.puzzles.find((puzzle) => puzzle.id === id);
 }
@@ -126,7 +146,8 @@ function resolveAction(state: RoomState, action: Action): Resolution {
       }
       // `clueText` is the point of `inspect`; an object with none still yields its
       // description, so the move is never silently wasted.
-      return { verdict: verdict(true, 'ok', target.clueText ?? target.description), state };
+      const text = target.clueText ?? target.description;
+      return { verdict: verdict(true, 'ok', `${text}${answerHint(state, target.id)}`), state };
     }
 
     case 'take': {
@@ -163,7 +184,7 @@ function resolveAction(state: RoomState, action: Action): Resolution {
       const contents = contentsOf(state, target.id);
       const message =
         contents.length > 0
-          ? `The ${target.name} opens. Inside is ${contents.map((c) => c.name).join(', ')}.`
+          ? `The ${target.name} opens. Inside is ${contents.map(labelOf).join(', ')}.`
           : `The ${target.name} opens. There is nothing inside.`;
       return { verdict: verdict(true, 'ok', message), state: withOpened(state, target.id) };
     }
@@ -192,7 +213,7 @@ function resolveAction(state: RoomState, action: Action): Resolution {
         };
       }
       if (target.lock.keyItemId !== action.itemId) {
-        return { verdict: verdict(false, 'locked', `That does not fit the ${target.name}.`), state };
+        return { verdict: verdict(false, 'wrong_key', `That does not fit the ${target.name}.`), state };
       }
       return {
         verdict: verdict(true, 'ok', `The ${target.name} unlocks.`),
@@ -239,13 +260,18 @@ function resolveAction(state: RoomState, action: Action): Resolution {
        * counts for the same solution — which would quietly corrupt the one number the
        * whole product compares models on.
        */
-      if (puzzle.kind === 'code') {
+      if (puzzle.kind !== 'answer') {
+        // The same reasoning covers a `key` puzzle (TICKET-7, #8): it is solved by
+        // `use` on its lock. The message names the lock, never the key.
         const holder = objectById(state, puzzle.unlocksObjectId);
+        const where = holder?.name ?? puzzle.unlocksObjectId;
         return {
           verdict: verdict(
             false,
             'not_permitted',
-            `That answer has to be entered into the ${holder?.name ?? puzzle.unlocksObjectId}.`,
+            puzzle.kind === 'code'
+              ? `That answer has to be entered into the ${where}.`
+              : `That has to be opened with something, on the ${where}.`,
           ),
           state,
         };

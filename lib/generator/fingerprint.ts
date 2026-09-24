@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { DifficultyBandSchema, type RoomSpec } from '@/lib/schema/room';
+import { DifficultyBandSchema, PuzzleKindSchema, type RoomSpec } from '@/lib/schema/room';
 import { ANSWER_DOMAINS, type SolverReport } from '@/lib/solver';
 
 /**
@@ -21,9 +21,9 @@ import { ANSWER_DOMAINS, type SolverReport } from '@/lib/solver';
 
 const ShapeSchema = z.strictObject({
   chainLength: z.number().int().positive(),
-  puzzleKinds: z.array(z.enum(['code', 'answer'])),
+  puzzleKinds: z.array(PuzzleKindSchema),
   unlockKinds: z.array(z.enum(['code', 'key', 'none'])),
-  /** `digits:4` for a code, `domain:direction` for a prose answer. */
+  /** `digits:4` for a code, `domain:direction` for a prose answer, `key` for a key. */
   answerShapes: z.array(z.string().min(1)),
   maxContainmentDepth: z.number().int().nonnegative(),
   objectCount: z.number().int().positive(),
@@ -65,6 +65,8 @@ export function hashShape(shape: Shape): string {
 function answerShape(puzzle: RoomSpec['puzzles'][number]): string {
   const answer = puzzle.answer.trim().toLowerCase();
   if (puzzle.kind === 'code') return `digits:${answer.length}`;
+  // A key's id is story, not structure — two rooms differing only in what they call the key are the same room.
+  if (puzzle.kind === 'key') return 'key';
   const domain = Object.entries(ANSWER_DOMAINS).find(([, members]) => members.includes(answer));
   return `domain:${domain?.[0] ?? 'unknown'}`;
 }

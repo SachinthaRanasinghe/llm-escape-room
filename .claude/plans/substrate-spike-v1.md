@@ -953,3 +953,12 @@ existing seam). Most of the uncertainty is external:
 ## AMENDMENTS
 
 <!-- Append-only. Newest at the bottom. Leave empty until this plan has been executed. -->
+- 2026-09-23 — Part A executed through A14, with live smoke checks.
+  - **A5 widened (planning):** a new `wrong_key` verdict, tallied `failed`.
+  - **`lib/providers/groq.ts`:** a Groq 400 carrying `failed_generation` is now decoded as the model's
+    `provider_rejected_call` turn. gpt-oss sends a code other than `tool_use_failed`, and the first live duel aborted
+    on it.
+  - **New test support:** `lib/solver/key-rooms.ts` and `lib/spike/testing.ts`.
+  - **Runner output:** the runner also writes `calls.json`.
+  - **A15/A16 open:** Gemini returned 503 all session, and the multi-day spike is not run. The decision record is
+    a draft.

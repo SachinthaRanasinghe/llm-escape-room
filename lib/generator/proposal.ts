@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LockSchema, ObjectKindSchema, RoomSpecSchema, type RoomSpec } from '@/lib/schema/room';
+import { LockSchema, ObjectKindSchema, PuzzleKindSchema, RoomSpecSchema, type RoomSpec } from '@/lib/schema/room';
 import { SPEC_VERSION } from '@/lib/schema/version';
 import type { NarrowResult, Stamp } from './types';
 
@@ -47,7 +47,7 @@ export const ProposedPuzzleSchema = z.object({
   id: text,
   /** Absent means its position in the array. */
   order: z.number().int().positive().optional(),
-  kind: z.enum(['code', 'answer']),
+  kind: PuzzleKindSchema,
   clueObjectId: text,
   answer: answerLike,
   unlocksObjectId: text,

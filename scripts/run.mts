@@ -21,9 +21,10 @@
  * quota. The room's contents — its answers — are never printed.
  *
  * Reading the environment and the real clock here is correct: `scripts/` is the
- * harness side, and `lib/harness` takes both as arguments. Model choice is
- * TICKET-7's; the defaults are placeholders on one provider, per
- * `architecture.md` → First matchup.
+ * harness side, and `lib/harness` takes both as arguments. The defaults are the
+ * TICKET-7 (#8) spike pair — two models on one free provider, per
+ * `architecture.md` → First matchup. The earlier Llama pair is gone from Groq's
+ * free tier (`llama-3.1-8b-instant` was shut down on 2026-08-16).
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -57,8 +58,8 @@ try {
   parsed = parseArgs({
     options: {
       room: { type: 'string' },
-      a: { type: 'string', default: 'groq:llama-3.3-70b-versatile' },
-      b: { type: 'string', default: 'groq:llama-3.1-8b-instant' },
+      a: { type: 'string', default: 'groq:openai/gpt-oss-120b' },
+      b: { type: 'string', default: 'groq:openai/gpt-oss-20b' },
       repeats: { type: 'string', default: String(DEFAULT_REPEATS) },
       'run-id': { type: 'string' },
       'max-actions': { type: 'string', default: String(DEFAULT_BUDGET.maxActions) },

@@ -138,6 +138,10 @@ export function checkStructure(spec: RoomSpec): Rejection[] {
   /* ── Lock agreement ───────────────────────────────────────────────────── */
 
   for (const puzzle of spec.puzzles) {
+    if (puzzle.kind === 'key') {
+      rejections.push(...checkKeyLock(puzzle, objectById));
+      continue;
+    }
     if (puzzle.kind !== 'code') continue;
     const target = objectById.get(puzzle.unlocksObjectId);
     if (target === undefined) continue; // already reported as dangling
@@ -179,6 +183,8 @@ export function checkStructure(spec: RoomSpec): Rejection[] {
   }
 
   /* ── Answer collision ─────────────────────────────────────────────────── */
+  // Key puzzles take part: two links opened by the same key would let one
+  // `take` solve both, which is the same giveaway as two puzzles sharing a code.
 
   for (let i = 0; i < spec.puzzles.length; i++) {
     for (let j = i + 1; j < spec.puzzles.length; j++) {
@@ -196,5 +202,55 @@ export function checkStructure(spec: RoomSpec): Rejection[] {
     }
   }
 
+  return rejections;
+}
+
+/**
+ * A `key` puzzle's lock agreement — TICKET-7 (#8).
+ *
+ * The answer must name a real, portable object (a key you can pick up), and the
+ * object the puzzle unlocks must have a KEY lock naming that same object. Either
+ * disagreement is a room that looks solvable on paper and cannot be escaped:
+ * the competitor finds the right key and the lock refuses it.
+ *
+ * No new rejection code: a missing key is a `dangling_reference`, anything else
+ * is a `lock_mismatch`. The generation record counts codes, and a new one would
+ * be a contract change there (`rejections.ts`).
+ */
+function checkKeyLock(
+  puzzle: RoomSpec['puzzles'][number],
+  objectById: ReadonlyMap<string, RoomSpec['objects'][number]>,
+): Rejection[] {
+  const site = { puzzleId: puzzle.id };
+  const key = objectById.get(puzzle.answer);
+  if (key === undefined) {
+    return [reject('dangling_reference', `puzzle ${puzzle.id}: key "${puzzle.answer}" names no object`, site)];
+  }
+  const rejections: Rejection[] = [];
+  if (key.kind !== 'portable') {
+    rejections.push(
+      reject('lock_mismatch', `puzzle ${puzzle.id}: key ${key.id} is a ${key.kind}, which cannot be carried`, {
+        ...site,
+        objectId: key.id,
+      }),
+    );
+  }
+  const target = objectById.get(puzzle.unlocksObjectId);
+  if (target === undefined) return rejections; // already reported as dangling
+  if (target.lock === null || target.lock.opensWith !== 'key') {
+    rejections.push(
+      reject('lock_mismatch', `puzzle ${puzzle.id} is a key puzzle but ${target.id} has no key lock`, {
+        ...site,
+        objectId: target.id,
+      }),
+    );
+  } else if (!answersMatch(target.lock.keyItemId, puzzle.answer)) {
+    rejections.push(
+      reject('lock_mismatch', `puzzle ${puzzle.id} names key ${puzzle.answer} but ${target.id} takes ${target.lock.keyItemId}`, {
+        ...site,
+        objectId: target.id,
+      }),
+    );
+  }
   return rejections;
 }

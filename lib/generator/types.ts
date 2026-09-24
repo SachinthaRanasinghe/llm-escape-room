@@ -1,5 +1,5 @@
 import type { Rng } from '@/lib/rng';
-import type { RoomSpec } from '@/lib/schema/room';
+import type { PuzzleKind, RoomSpec } from '@/lib/schema/room';
 import type { AnswerDomain } from '@/lib/solver';
 
 /**
@@ -23,17 +23,22 @@ export type Band = RoomSpec['difficulty']['band'];
  * measurable if the structure is chosen, and only reproducible if it is chosen
  * from a seed.
  *
- * These fields are a v0 guess shaped by `symbolic`. TICKET-7 may widen them
- * when spatial and mixed strategies need things this cannot express.
+ * Shaped first by `symbolic`, then widened by TICKET-7 (#8) for `spatial` and
+ * `mixed`: `linkKinds` says what each link is, so one brief describes any mix of
+ * code, key and spoken-answer links.
  */
 export interface StructuralBrief {
   readonly chainLength: number;
   readonly band: Band;
-  /** The lexicon domain the final, prose answer comes from. */
-  readonly finalAnswerDomain: AnswerDomain;
-  /** Digits per code puzzle, in chain order — `chainLength - 1` entries. */
+  /** One per link, in chain order — `chainLength` entries. */
+  readonly linkKinds: readonly PuzzleKind[];
+  /** The lexicon domain the final prose answer comes from; `null` when the last link is not an `answer`. */
+  readonly finalAnswerDomain: AnswerDomain | null;
+  /** Digits per `code` link, in chain order — one entry per `code` in `linkKinds`. */
   readonly codeWidths: readonly number[];
   readonly decoys: number;
+  /** Portable keys that fit nothing. Zero for a strategy with no key links. */
+  readonly decoyKeys: number;
   readonly themeHint: string;
 }
 

@@ -51,6 +51,9 @@ export interface DerivationResult {
 export function candidatesFor(puzzle: Puzzle, clueText: string | null): string[] {
   if (clueText === null) return [];
 
+  // A key is not read out of prose; where it lies is the whole clue. See `keyIsFindable`.
+  if (puzzle.kind === 'key') return [];
+
   if (puzzle.kind === 'code') {
     const width = puzzle.answer.trim().length;
     const runs = clueText.match(/\d+/g) ?? [];
@@ -76,12 +79,53 @@ export function candidatesFor(puzzle: Puzzle, clueText: string | null): string[]
   return membersOf(domain).filter((member) => tokens.has(member));
 }
 
+/**
+ * A `key` puzzle's analogue of "the answer can be read off the clue": the key
+ * object IS the clue object, or lies (directly or nested) inside it.
+ *
+ * TICKET-7 (#8). There is no ambiguity rule for keys — a lock names exactly one
+ * `keyItemId`, so a decoy key can waste a turn but never be a second answer.
+ */
+function keyIsFindable(spec: RoomSpec, puzzle: Puzzle): boolean {
+  if (puzzle.clueObjectId === puzzle.answer) return true;
+  const byId = new Map(spec.objects.map((o) => [o.id, o]));
+  const queue = [...(byId.get(puzzle.clueObjectId)?.contains ?? [])];
+  const seen = new Set<string>();
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (id === puzzle.answer) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    queue.push(...(byId.get(id)?.contains ?? []));
+  }
+  return false;
+}
+
 export function checkDerivation(spec: RoomSpec): DerivationResult {
   const clueTextById = new Map(spec.objects.map((o) => [o.id, o.clueText]));
+  const objectIds = new Set(spec.objects.map((o) => o.id));
   const rejections: Rejection[] = [];
   const derivable = new Set<string>();
 
   for (const puzzle of spec.puzzles) {
+    if (puzzle.kind === 'key') {
+      // A key id that names no object is `structure.ts`'s `dangling_reference`;
+      // not derivable, and not reported twice.
+      if (!objectIds.has(puzzle.answer)) continue;
+      if (keyIsFindable(spec, puzzle)) {
+        derivable.add(puzzle.id);
+      } else {
+        rejections.push(
+          reject(
+            'answer_not_derivable',
+            `puzzle ${puzzle.id}: key ${puzzle.answer} is not ${puzzle.clueObjectId}, and not inside it`,
+            { puzzleId: puzzle.id, objectId: puzzle.clueObjectId },
+          ),
+        );
+      }
+      continue;
+    }
+
     /*
      * A `clueObjectId` naming an object that does not exist is a DANGLING
      * REFERENCE, and `structure.ts` already reports it. Treat it as no clue and

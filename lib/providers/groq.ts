@@ -183,14 +183,29 @@ interface GroqResponse {
     };
   }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number };
-  error?: { code?: string; message?: string };
+  error?: { code?: string; message?: string; failed_generation?: unknown };
+}
+
+/**
+ * Groq attaches `failed_generation` to a 400 only when the MODEL's own output
+ * could not be parsed — the payload is what the model wrote. `tool_use_failed`
+ * is one code for that; gpt-oss produces another ("Parsing failed. The model
+ * generated output that could not be parsed."), found in the first live
+ * TICKET-7 (#8) duel, where treating it as a provider failure aborted the whole
+ * run over one fumbled turn. Keyed on the field rather than on a list of codes,
+ * so the next code Groq invents for the same failure is still a turn.
+ *
+ * The field's content is never read: it is untrusted model text.
+ */
+function modelGenerationFailed(error: GroqResponse['error']): boolean {
+  return error !== undefined && Object.hasOwn(error, 'failed_generation');
 }
 
 export function decodeGroqResponse(status: number, json: unknown, context: DecodeContext): DecodedTurn {
   const { callIndex, secrets = [], attempts = 1 } = context;
   const body = (json ?? {}) as GroqResponse;
 
-  if (status === 400 && body.error?.code === 'tool_use_failed') {
+  if (status === 400 && (body.error?.code === 'tool_use_failed' || modelGenerationFailed(body.error))) {
     // Forced mode, and the model's output could not be read as a tool call.
     // The model's failure — a turn, not an exception.
     return rejectedTurn({ prompt: 0, completion: 0 }, null);

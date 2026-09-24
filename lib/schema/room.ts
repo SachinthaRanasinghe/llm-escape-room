@@ -66,6 +66,24 @@ export const RoomObjectSchema = z.strictObject({
 export type RoomObject = z.infer<typeof RoomObjectSchema>;
 
 /**
+ * How a puzzle is solved.
+ *
+ * - `code` — typed into a code lock with `enter_code`.
+ * - `answer` — submitted directly with `submit_answer`.
+ * - `key` — the `answer` is the ID of a portable key object, and the puzzle is
+ *   solved by `use`-ing that key on `unlocksObjectId`, whose lock is
+ *   `{ opensWith: 'key', keyItemId: answer }`. `clueObjectId` is the key itself
+ *   or whatever holds it: finding it is the puzzle.
+ *
+ * `key` was added by TICKET-7 (#8) for the spike's `spatial` substrate, while v0
+ * was still unpinned — see `version.ts`. One exported tuple, so the generator's
+ * proposal schema and the fingerprint cannot drift from this one.
+ */
+export const PUZZLE_KINDS = ['code', 'answer', 'key'] as const;
+export const PuzzleKindSchema = z.enum(PUZZLE_KINDS);
+export type PuzzleKind = z.infer<typeof PuzzleKindSchema>;
+
+/**
  * One link in the chain. `clueObjectId` holds the hint, `answer` is what that
  * hint yields, and `unlocksObjectId` is what the answer opens — which in turn
  * holds the next puzzle's clue. That cycle is the room.
@@ -74,8 +92,8 @@ export const PuzzleSchema = z.strictObject({
   id: z.string().min(1),
   /** 1-based position in the chain. */
   order: z.number().int().positive(),
-  /** `code` is typed into a lock; `answer` is submitted directly. */
-  kind: z.enum(['code', 'answer']),
+  /** See `PUZZLE_KINDS`. */
+  kind: PuzzleKindSchema,
   clueObjectId: z.string().min(1),
   /** The expected answer, compared case-insensitively after trimming by the simulator. */
   answer: z.string().min(1),

@@ -12,6 +12,10 @@ import { z } from 'zod';
  *
  * Downstream tickets should expect exactly ONE migration. Code against v0
  * freely; do not build a version-tolerant reader in anticipation.
+ *
+ * TICKET-7 (#8) widened v0 IN PLACE during the spike — a `key` puzzle kind and a
+ * `wrong_key` verdict — rather than bumping twice. That is what "unpinned" is
+ * for: the one migration still happens once, after the spike reports.
  */
 export const SPEC_VERSION = 0;
 

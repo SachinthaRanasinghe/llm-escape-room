@@ -120,13 +120,20 @@ function movesFrom(spec: RoomSpec, node: Node, options: OracleOptions): Action[]
   const solvable = solvableNow(spec, node, options);
 
   for (const puzzle of spec.puzzles) {
-    /* Learn: inspect a derivable clue not yet read. */
-    if (!node.known.has(puzzle.id) && options.derivable.has(puzzle.id) && isReachable(node.state, puzzle.clueObjectId)) {
+    const known = knows(node, puzzle, options.derivable);
+
+    /* Learn: inspect a derivable clue not yet read. A key is never read — see `knows`. */
+    if (
+      puzzle.kind !== 'key' &&
+      !known &&
+      options.derivable.has(puzzle.id) &&
+      isReachable(node.state, puzzle.clueObjectId)
+    ) {
       moves.push({ name: 'inspect', targetId: puzzle.clueObjectId, intent: INTENT });
     }
 
     /* Act: spend what has been learned. */
-    if (!node.known.has(puzzle.id)) continue;
+    if (!known) continue;
     if (node.state.solved.has(puzzle.id)) continue;
     if (!solvable.has(puzzle.id)) continue;
 
@@ -181,7 +188,28 @@ function solvableNow(spec: RoomSpec, node: Node, options: OracleOptions): Set<st
 }
 
 /**
- * Inspecting a clue is the only way anything is learned.
+ * Whether the oracle may act on a puzzle yet.
+ *
+ * ── A key is known by REACHING it, not by reading about it ─────────────────
+ * TICKET-7 (#8). A competitor can pick up a key it never inspected, so gating a
+ * `key` puzzle on an `inspect` would make `minActions` overstate what a
+ * competitor could get away with — and could hide a real shortcut. The key's
+ * `take` + `use` is then two actions, the same as `inspect` + `enter_code`, so a
+ * link costs the same whatever its kind and the difficulty bands mean the same
+ * thing for every generator strategy.
+ *
+ * `derivable` still gates it: `derivation.ts` only calls a key puzzle derivable
+ * when the key really lies where its clue object says.
+ */
+function knows(node: Node, puzzle: RoomSpec['puzzles'][number], derivable: ReadonlySet<string>): boolean {
+  if (puzzle.kind !== 'key') return node.known.has(puzzle.id);
+  if (!derivable.has(puzzle.id)) return false;
+  return node.state.held.has(puzzle.answer) || isReachable(node.state, puzzle.answer);
+}
+
+/**
+ * Inspecting a clue is the only way anything is learned — except where a key
+ * is, which is learned by reaching it (`knows`).
  *
  * The `derivable` filter matters when ONE object carries the clue for two
  * puzzles: without it, reading a clue that yields one answer would hand over a

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { VERDICT_CODES } from '@/lib/schema/action';
+import type { RoomSpec } from '@/lib/schema/room';
 import { loadCanonicalRoom } from '@/fixtures';
 import { NO_COST, type ActionCost, type Budget } from './budget';
 import { SimulatorError } from './state';
@@ -162,6 +163,26 @@ describe('createSimulator — summarise', () => {
     const summary = simulator.summarise();
     expect(summary.failedAttempts).toBe(2);
     expect(summary.invalidActions).toBe(1);
+  });
+
+  it('counts a wrong key as a failed attempt, not as locked', () => {
+    const cellar: RoomSpec = {
+      ...spec,
+      objects: [
+        { id: 'key', name: 'brass key', description: 'A key.', kind: 'portable', lock: null, contains: [], clueText: null },
+        { id: 'spoon', name: 'tin spoon', description: 'A spoon.', kind: 'portable', lock: null, contains: [], clueText: null },
+        { id: 'gate', name: 'iron gate', description: 'A gate.', kind: 'door', lock: { opensWith: 'key', keyItemId: 'key' }, contains: [], clueText: null },
+      ],
+      puzzles: [{ id: 'k1', order: 1, kind: 'key', clueObjectId: 'key', answer: 'key', unlocksObjectId: 'gate' }],
+      exit: { objectId: 'gate', requiresPuzzleId: 'k1' },
+      solution: { order: ['k1'] },
+    };
+    const simulator = createSimulator({ spec: cellar, budget: { ...budget, maxActions: 2 }, competitorId: 'model-a' });
+    simulator.apply({ name: 'take', targetId: 'spoon', intent }, NO_COST);
+    simulator.apply({ name: 'use', itemId: 'spoon', targetId: 'gate', intent }, NO_COST);
+    const summary = simulator.summarise();
+    expect(summary.failedAttempts).toBe(1);
+    expect(summary.invalidActions).toBe(0);
   });
 
   it('does not report costUsd — the harness knows pricing and this does not', () => {

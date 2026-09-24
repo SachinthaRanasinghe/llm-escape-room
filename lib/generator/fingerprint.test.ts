@@ -4,6 +4,7 @@ import { createRng } from '@/lib/rng';
 import type { RoomSpec } from '@/lib/schema/room';
 import { verifySpec } from '@/lib/solver';
 import { buildValidRoom } from '@/lib/solver/fuzz';
+import { keyRoom, mixedRoom } from '@/lib/solver/key-rooms';
 import { differsFrom, fingerprintRoom } from './fingerprint';
 
 function certified(spec: RoomSpec) {
@@ -100,5 +101,18 @@ describe('fingerprintRoom', () => {
     const three = certified(buildValidRoom(createRng('fp-3'), { chainLength: 3 }));
     expect(differsFrom(two, three)).toBe(true);
     expect(differsFrom(three, three)).toBe(false);
+  });
+});
+
+describe('fingerprintRoom — key links (TICKET-7, #8)', () => {
+  it('records key links as their own kind and shape', () => {
+    const f = certified(keyRoom());
+    expect(f.puzzleKinds).toEqual(['key', 'key', 'key']);
+    expect(f.unlockKinds).toEqual(['key', 'key', 'key']);
+    expect(f.answerShapes).toEqual(['key', 'key', 'key']);
+  });
+
+  it('tells a key chain from a mixed chain of the same length', () => {
+    expect(differsFrom(certified(keyRoom()), certified(mixedRoom()))).toBe(true);
   });
 });

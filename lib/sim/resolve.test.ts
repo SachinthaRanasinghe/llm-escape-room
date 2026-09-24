@@ -88,6 +88,45 @@ describe('resolve — inspect', () => {
   });
 });
 
+/**
+ * TICKET-7 (#8): a competitor must be able to learn every id it needs from what
+ * the simulator says, not by guessing. Ids are not secrets; answers are.
+ */
+describe('resolve — ids a competitor can act on', () => {
+  it('names each object in look with its id', () => {
+    const { verdict } = resolve(fresh, act({ name: 'look' }));
+    expect(verdict.message).toContain('writing desk [desk]');
+    expect(verdict.message).toContain('wall safe [wall-safe]');
+  });
+
+  it('names what an opened container holds with its id', () => {
+    const { verdict } = resolve(fresh, act({ name: 'open', targetId: 'desk' }));
+    expect(verdict.message).toContain('[ledger]');
+  });
+
+  it('names the answer puzzle id on inspecting its clue, never the answer beyond the clue', () => {
+    const state = withUnlocked(withUnlocked(fresh, 'wall-safe'), 'cabinet');
+    const { verdict } = resolve(state, act({ name: 'inspect', targetId: 'logbook' }));
+    expect(verdict.message).toContain('puzzleId "p3"');
+  });
+
+  it('names the answer puzzle id on inspecting what the answer opens', () => {
+    const { verdict } = resolve(fresh, act({ name: 'inspect', targetId: 'door' }));
+    expect(verdict.message).toContain('puzzleId "p3"');
+    expect(verdict.message.toLowerCase()).not.toContain('north');
+  });
+
+  it('gives no puzzle id for a code clue — the lock id is enough', () => {
+    const { verdict } = resolve(fresh, act({ name: 'inspect', targetId: 'ledger' }));
+    expect(verdict.message).not.toContain('puzzleId');
+  });
+
+  it('stops hinting once the puzzle is solved', () => {
+    const solved = run(fresh, act({ name: 'submit_answer', puzzleId: 'p3', answer: 'north' })).state;
+    expect(resolve(solved, act({ name: 'inspect', targetId: 'door' })).verdict.message).not.toContain('puzzleId');
+  });
+});
+
 describe('resolve — take', () => {
   it('picks up a reachable portable object', () => {
     const { verdict, state } = resolve(fresh, act({ name: 'take', targetId: 'ledger' }));
@@ -155,9 +194,9 @@ describe('resolve — use', () => {
     expect(resolve(cellar, act({ name: 'use', itemId: 'key', targetId: 'gate' })).verdict.code).toBe('not_holding');
   });
 
-  it('is locked when the wrong item is applied', () => {
+  it('is wrong_key when the wrong item is applied — a mistake, not a locked door', () => {
     const state = withHeld(cellar, 'spoon');
-    expect(resolve(state, act({ name: 'use', itemId: 'spoon', targetId: 'gate' })).verdict.code).toBe('locked');
+    expect(resolve(state, act({ name: 'use', itemId: 'spoon', targetId: 'gate' })).verdict.code).toBe('wrong_key');
   });
 
   it('is not_permitted against something with no lock', () => {
@@ -238,6 +277,17 @@ describe('resolve — submit_answer', () => {
     expect(resolve(fresh, act({ name: 'submit_answer', puzzleId: 'p9', answer: 'north' })).verdict.code).toBe(
       'not_found',
     );
+  });
+
+  it('refuses a key puzzle and points at its lock, never naming the key', () => {
+    const spec: RoomSpec = {
+      ...keyRoom,
+      puzzles: [{ id: 'k1', order: 1, kind: 'key', clueObjectId: 'hook', answer: 'key', unlocksObjectId: 'gate' }],
+    };
+    const { verdict } = resolve(compileRoom(spec), act({ name: 'submit_answer', puzzleId: 'k1', answer: 'key' }));
+    expect(verdict.code).toBe('not_permitted');
+    expect(verdict.message).toContain('iron gate');
+    expect(verdict.message).not.toContain('brass');
   });
 
   /** A code puzzle has a lock to type into; answering it in the abstract would make the lock decorative. */

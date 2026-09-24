@@ -149,6 +149,25 @@ describe('decodeGroqResponse', () => {
     expect(ActionSchema.safeParse(turn.rawAction).success).toBe(false);
   });
 
+  it('treats any 400 carrying failed_generation as the model fumbling a turn — gpt-oss sends another code', () => {
+    const json = {
+      error: {
+        message: "Parsing failed. The model generated output that could not be parsed. Please adjust your prompt. See 'failed_generation' for more details.",
+        type: 'invalid_request_error',
+        code: 'output_parse_failed',
+        failed_generation: 'to=functions.inspect {"targetId":',
+      },
+    };
+    const turn = decodeGroqResponse(400, json, ctx);
+    expect(turn.anomaly).toBe('provider_rejected_call');
+    expect(turn.text).toBeNull(); // the failed generation is untrusted and never carried
+  });
+
+  it('still throws on a 400 that is not a failed generation', () => {
+    const json = { error: { message: 'messages: field required', type: 'invalid_request_error', code: 'invalid_request' } };
+    expect(() => decodeGroqResponse(400, json, ctx)).toThrow(ProviderError);
+  });
+
   it('throws ProviderError on a real refusal, with the key scrubbed', () => {
     const json = { error: { message: `Invalid API Key ${KEY}`, code: 'invalid_api_key' } };
     const error = (() => {

@@ -1,7 +1,23 @@
 import type { Rng } from '@/lib/rng';
-import { ANSWER_DOMAINS, DIFFICULTY_RANGES } from '@/lib/solver';
+import { ANSWER_DOMAINS } from '@/lib/solver';
 import { narrowProposal } from '../proposal';
 import type { AttemptFeedback, Band, GeneratorStrategy, StructuralBrief } from '../types';
+import {
+  CODE_WIDTHS,
+  MAX_CHAIN_LENGTH,
+  THEME_HINTS,
+  chainLengthsFor,
+  chainRule,
+  estimateRule,
+  exampleLines,
+  feedbackLines,
+  idRule,
+  solutionOrderRule,
+  systemPrompt,
+} from './shared';
+
+// Re-exported so existing importers keep working; the definitions moved to `shared.ts`.
+export { MAX_CHAIN_LENGTH, THEME_HINTS, chainLengthsFor } from './shared';
 
 /**
  * The `symbolic` strategy — digit codes, then one prose answer from a closed
@@ -15,42 +31,10 @@ import type { AttemptFeedback, Band, GeneratorStrategy, StructuralBrief } from '
  *
  * The shape is the canonical fixture's: code locks down the chain, and a final
  * `answer` puzzle that opens the door. No key locks.
+ *
+ * The substrate-free rules — chain, ids, order, feedback — live in `shared.ts`
+ * since TICKET-7 (#8); this file keeps what makes a link symbolic.
  */
-
-/**
- * The PRD asks for "a short chain of ~3 puzzles", and every action is a beat on
- * screen against the 60–90 second watch target. Four is the ceiling until
- * TICKET-7 measures otherwise — which puts `hard` out of this strategy's reach.
- */
-export const MAX_CHAIN_LENGTH = 4;
-
-const CODE_WIDTHS = [3, 4, 5] as const;
-
-/** Settings, not stories: the model writes the story. Kept free of digits and lexicon words. */
-export const THEME_HINTS = [
-  'a lighthouse keeper’s lamp room',
-  'an apothecary’s back room',
-  'a disused observatory',
-  'a ship’s chart room below deck',
-  'a clockmaker’s workshop',
-  'a monastery scriptorium',
-  'a railway signal box',
-  'a botanist’s glasshouse',
-  'a bank vault antechamber',
-  'a theatre’s prop store',
-  'a mountain weather station',
-  'a bookbinder’s attic',
-] as const;
-
-/** Every chain length whose intended action count (two per link) fits the band. */
-export function chainLengthsFor(band: Band): number[] {
-  const range = DIFFICULTY_RANGES[band];
-  const lengths: number[] = [];
-  for (let length = 1; length <= MAX_CHAIN_LENGTH; length++) {
-    if (2 * length >= range.min && 2 * length <= range.max) lengths.push(length);
-  }
-  return lengths;
-}
 
 /**
  * The shape, never the content: a two-puzzle room whose answers are obviously
@@ -91,24 +75,21 @@ export function createSymbolicStrategy({ band = 'standard' }: SymbolicOptions = 
           `symbolic: band "${band}" needs more than ${MAX_CHAIN_LENGTH} puzzles, above this strategy's chain cap`,
         );
       }
+      // Draw order is fixed: a new draw here would change every existing seed's brief.
       const chainLength = rng.pick(lengths);
       return {
         chainLength,
         band,
+        linkKinds: [...Array<'code'>(chainLength - 1).fill('code'), 'answer'],
         finalAnswerDomain: rng.pick(Object.keys(ANSWER_DOMAINS).sort()),
         codeWidths: Array.from({ length: chainLength - 1 }, () => rng.pick(CODE_WIDTHS)),
         decoys: rng.int(1, 3),
+        decoyKeys: 0,
         themeHint: rng.pick(THEME_HINTS),
       };
     },
 
-    system(): string {
-      return (
-        'You design small, logically airtight escape rooms for a puzzle engine. ' +
-        'A machine verifier checks every room you write, literally and without judgement. ' +
-        'Respond with a single JSON object and nothing else.'
-      );
-    },
+    system: systemPrompt,
 
     prompt(brief: StructuralBrief, feedback: AttemptFeedback | null): string {
       return [...promptLines(brief), ...feedbackLines(feedback)].join('\n');
@@ -120,19 +101,14 @@ export function createSymbolicStrategy({ band = 'standard' }: SymbolicOptions = 
 
 function promptLines(brief: StructuralBrief): string[] {
   const n = brief.chainLength;
-  const words = ANSWER_DOMAINS[brief.finalAnswerDomain] ?? [];
-  const codeRules = brief.codeWidths.map(
-    (width, i) => `   - puzzle p${i + 1}: a ${width}-digit code (quoted as a string, e.g. "${'7'.repeat(width)}" is the shape, not the value)`,
-  );
+  const words = brief.finalAnswerDomain === null ? [] : (ANSWER_DOMAINS[brief.finalAnswerDomain] ?? []);
+  const codeRules = brief.codeWidths.map((width, i) => codeWidthLine(i + 1, width));
 
   return [
     `Design an escape room set in ${brief.themeHint}. Write it as one JSON object.`,
     '',
     'HARD CONSTRAINTS — the verifier rejects the room if any is broken:',
-    `1. Exactly ${n} puzzles, ids p1..p${n}, with "order" 1..${n}, forming one linear chain.`,
-    `   The clue object for puzzle N+1 must be INSIDE (directly, or nested) the object that puzzle N unlocks,`,
-    '   so it cannot be reached before puzzle N is solved. The clue object for p1 must be reachable at the start:',
-    '   on the floor, or inside an unlocked container.',
+    ...chainRule(n),
     ...(n > 1
       ? [
           `2. Puzzles p1..p${n - 1} are "kind": "code". Each unlocks a "container" or "lock" object whose`,
@@ -145,28 +121,28 @@ function promptLines(brief: StructuralBrief): string[] {
     `   and "exit" is {"objectId": "door", "requiresPuzzleId": "p${n}"}. Its answer is exactly ONE of these words:`,
     `   ${words.join(', ')}.`,
     '4. Each puzzle\'s clue object has a "clueText" that states its answer so a careful reader can find it:',
-    '   - a code clue contains the code as digits, and NO OTHER number with the same count of digits',
-    '     (no years, totals or dates of that width anywhere in that clueText);',
+    ...CODE_CLUE_LINES,
     `   - the final clue contains the answer word exactly as written, and NO OTHER word from the list above.`,
-    '   An object\'s "description" is what is seen at a glance: it must never contain a clue or an answer.',
+    DESCRIPTION_LINE,
     `5. Exactly ${brief.decoys} extra decoy object(s): unlocked, holding nothing, with a short "clueText" that`,
     '   contains no digits and none of the words from the list above.',
-    `6. "estimatedActions" is an integer from ${2 * n} to ${6 * n}; if unsure, use ${3 * n}.`,
-    '7. Every id is unique; every id referenced anywhere exists; an object is inside at most one other object;',
-    '   nothing contains itself. Object "kind" is one of: container, fixture, portable, lock, door.',
-    `8. "solutionOrder" is ["p1", ..., "p${n}"].`,
-    '',
-    'The JSON shape, with placeholder content — copy the SHAPE, never the content:',
-    JSON.stringify(EXAMPLE),
+    estimateRule(6, n),
+    ...idRule(7),
+    solutionOrderRule(8, n),
+    ...exampleLines(EXAMPLE),
   ];
 }
 
-function feedbackLines(feedback: AttemptFeedback | null): string[] {
-  if (feedback === null || feedback.lines.length === 0) return [];
-  return [
-    '',
-    'Your previous room was rejected by the verifier for:',
-    ...feedback.lines.map((line) => `- ${line}`),
-    'Write a complete new room as one JSON object that satisfies every constraint above.',
-  ];
+/** One code link's width, as `mixed` also states it. */
+export function codeWidthLine(puzzleNumber: number, width: number): string {
+  return `   - puzzle p${puzzleNumber}: a ${width}-digit code (quoted as a string, e.g. "${'7'.repeat(width)}" is the shape, not the value)`;
 }
+
+/** What `derivation.ts` needs from a code clue — shared with `mixed`. */
+export const CODE_CLUE_LINES = [
+  '   - a code clue contains the code as digits, and NO OTHER number with the same count of digits',
+  '     (no years, totals or dates of that width anywhere in that clueText);',
+] as const;
+
+export const DESCRIPTION_LINE =
+  '   An object\'s "description" is what is seen at a glance: it must never contain a clue or an answer.';

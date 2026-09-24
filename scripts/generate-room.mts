@@ -25,7 +25,7 @@ import { GenerationAbortedError, generateRoom, resolveStrategy, type GenerationR
 import { ProviderError, createGenerationClient, readProviderKey } from '../lib/providers';
 import { ProviderSchema, type Provider } from '../lib/schema/run';
 
-const DEFAULT_MODELS: Record<Provider, string> = { groq: 'llama-3.3-70b-versatile', gemini: 'gemini-flash-latest' };
+const DEFAULT_MODELS: Record<Provider, string> = { groq: 'openai/gpt-oss-120b', gemini: 'gemini-flash-latest' };
 
 const USAGE =
   'usage: node --env-file-if-exists=.env --import tsx scripts/generate-room.mts --seed <seed> ' +

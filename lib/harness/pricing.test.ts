@@ -8,6 +8,12 @@ describe('costOf', () => {
     expect(costOf({ provider: 'groq', modelId: 'llama-3.3-70b-versatile' }, tokens)).toEqual({ usd: 0, priced: true });
   });
 
+  it('prices the gpt-oss pair the spike and the CLI default to', () => {
+    for (const modelId of ['openai/gpt-oss-120b', 'openai/gpt-oss-20b']) {
+      expect(costOf({ provider: 'groq', modelId }, tokens)).toEqual({ usd: 0, priced: true });
+    }
+  });
+
   it('flags a model nobody priced instead of pretending', () => {
     expect(costOf({ provider: 'groq', modelId: 'competitor-a' }, tokens)).toEqual({ usd: 0, priced: false });
   });

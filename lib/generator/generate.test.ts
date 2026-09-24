@@ -140,7 +140,7 @@ describe('generateRoom', () => {
   it('runs any strategy — a test-only second one goes through the same loop', async () => {
     const other: GeneratorStrategy = {
       name: 'test-only',
-      brief: () => ({ chainLength: 3, band: 'standard', finalAnswerDomain: 'direction', codeWidths: [4, 4], decoys: 1, themeHint: 'a test' }),
+      brief: () => ({ chainLength: 3, band: 'standard', linkKinds: ['code', 'code', 'answer'], finalAnswerDomain: 'direction', codeWidths: [4, 4], decoys: 1, decoyKeys: 0, themeHint: 'a test' }),
       system: () => 'Test system. JSON.',
       prompt: (_brief, feedback) => `Test prompt. JSON.${feedback ? ` ${feedback.lines.join(' ')}` : ''}`,
       narrow: narrowProposal,

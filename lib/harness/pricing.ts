@@ -26,8 +26,19 @@ export type PriceTable = Readonly<Record<Provider, Readonly<Record<string, Price
 
 const FREE: Price = { promptPerMTok: 0, completionPerMTok: 0 };
 
+/**
+ * The Llama entries stay after TICKET-7 (#8) moved the defaults to gpt-oss: Groq
+ * shut down `llama-3.1-8b-instant` on 2026-08-16 and now lists both Llamas as
+ * Enterprise, but run records already on disk still name them, and re-pricing
+ * an old run must not suddenly call it unpriced.
+ */
 export const PRICING: PriceTable = {
-  groq: { 'llama-3.3-70b-versatile': FREE, 'llama-3.1-8b-instant': FREE },
+  groq: {
+    'openai/gpt-oss-120b': FREE,
+    'openai/gpt-oss-20b': FREE,
+    'llama-3.3-70b-versatile': FREE,
+    'llama-3.1-8b-instant': FREE,
+  },
   gemini: { 'gemini-flash-latest': FREE },
 };
 

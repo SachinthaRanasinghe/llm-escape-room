@@ -24,7 +24,7 @@ import { PROVIDER_KEY_VARS, ProviderError, createAdapter, readProviderKey } from
 // Model choice is TICKET-7's; these are only defaults for a smoke call.
 const { values } = parseArgs({
   options: {
-    'groq-model': { type: 'string', default: 'llama-3.3-70b-versatile' },
+    'groq-model': { type: 'string', default: 'openai/gpt-oss-120b' },
     'gemini-model': { type: 'string', default: 'gemini-flash-latest' },
   },
 });

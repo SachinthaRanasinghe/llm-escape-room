@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DifficultyBandSchema } from '@/lib/schema/room';
+import { DifficultyBandSchema, PuzzleKindSchema } from '@/lib/schema/room';
 import { ProviderSchema } from '@/lib/schema/run';
 import { SchemaError } from '@/lib/schema/version';
 import { RejectionCodeSchema } from '@/lib/solver';
@@ -27,7 +27,12 @@ import { RoomFingerprintSchema } from './fingerprint';
  * but a reader of an old record should still refuse a new one loudly.
  */
 
-export const GENERATION_RECORD_VERSION = 0;
+/**
+ * 1 since TICKET-7 (#8) widened the brief (`linkKinds`, `decoyKeys`, a nullable
+ * `finalAnswerDomain`). No version-0 record was ever committed — `runs/` is
+ * gitignored — so there is nothing to migrate; an old one on disk is refused.
+ */
+export const GENERATION_RECORD_VERSION = 1;
 
 export const ATTEMPT_OUTCOMES = ['accepted', 'rejected', 'proposal_malformed', 'unparseable_json'] as const;
 export const AttemptOutcomeSchema = z.enum(ATTEMPT_OUTCOMES);
@@ -69,9 +74,11 @@ export const GenerationRecordSchema = z.strictObject({
   brief: z.strictObject({
     chainLength: z.number().int().positive(),
     band: DifficultyBandSchema,
-    finalAnswerDomain: z.string().min(1),
+    linkKinds: z.array(PuzzleKindSchema),
+    finalAnswerDomain: z.string().min(1).nullable(),
     codeWidths: z.array(z.number().int().positive()),
     decoys: z.number().int().nonnegative(),
+    decoyKeys: z.number().int().nonnegative(),
     themeHint: z.string().min(1),
   }),
   attempts: z.array(GenerationAttemptSchema),

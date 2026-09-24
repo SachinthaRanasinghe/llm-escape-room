@@ -45,7 +45,7 @@ describe('symbolic prompt', () => {
   const prompt = symbolic.prompt(brief, null);
 
   it('names every word of the final domain, the chain length and each code width', () => {
-    for (const word of ANSWER_DOMAINS[brief.finalAnswerDomain]!) expect(prompt).toContain(word);
+    for (const word of ANSWER_DOMAINS[brief.finalAnswerDomain!]!) expect(prompt).toContain(word);
     expect(prompt).toContain(`Exactly ${brief.chainLength} puzzles`);
     for (const width of brief.codeWidths) expect(prompt).toContain(`${width}-digit code`);
     expect(prompt).toContain(brief.themeHint);
@@ -85,9 +85,11 @@ describe('symbolic narrowing accepts every room of the shape its prompt asks for
 });
 
 describe('registry', () => {
-  it('resolves symbolic and refuses an unknown name with the known list', () => {
+  it('resolves all three substrates and refuses an unknown name with the known list', () => {
     expect(resolveStrategy('symbolic')).toBe(STRATEGIES.symbolic);
-    expect(() => resolveStrategy('spatial')).toThrow(/unknown strategy "spatial" — known: symbolic/);
+    expect(resolveStrategy('spatial')).toBe(STRATEGIES.spatial);
+    expect(resolveStrategy('mixed')).toBe(STRATEGIES.mixed);
+    expect(() => resolveStrategy('narrative')).toThrow(/unknown strategy "narrative" — known: mixed, spatial, symbolic/);
     expect(() => resolveStrategy('toString')).toThrow(/unknown strategy/);
   });
 });

@@ -16,8 +16,8 @@ time, which keeps results from being memorized between runs.
 In build. The v0 contracts and the fixture corpus exist, the simulator resolves every action in the
 vocabulary, the solver certifies a room before it is ever run, the provider adapters hand both
 models provably the same task, the generator writes fresh rooms that the solver has certified, and
-the harness races two models through one of them and writes the event log.
-The replay player can be built against the fixtures.
+the harness races two models through one of them and writes the event log. The replay player plays
+the golden fixture log at `/replay`.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -76,6 +76,15 @@ repeat whose provider fails is dropped. A contract test replays the golden log t
 and must reproduce the committed run exactly. To run a live matchup against the fixture room, run
 `node --env-file-if-exists=.env --import tsx scripts/run.mts` (add `--room runs/rooms/<id>.json` for a
 generated one). It writes the run, its log and its repeats under `runs/<runId>/`.
+
+`lib/replay/` and `components/scene/` are the replay player. The server page reads the fixtures, projects
+the room into a public layout (names, kinds and positions, never an answer), and hands the client only
+that and the log, turned into one lane per model. Every action gets the same five-second beat, so a
+typical run lasts 60 to 90 seconds. Each model's real think-time is shown as a stat and never changes
+the pacing. The intent is quoted exactly as the model wrote it, never trimmed, cut or summarised. A
+boundary test keeps the client side away from the fixtures, the room schema, the providers, the
+network and any clock but the frame timestamp. To watch it, run `pnpm dev` and open `/replay`. To run
+the browser test, run `pnpm e2e` (the first time, `pnpm exec playwright install chromium`).
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

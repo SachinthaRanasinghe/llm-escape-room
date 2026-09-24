@@ -7,18 +7,24 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
+    "@react-three/drei": "10.7.8",
+    "@react-three/fiber": "9.8.0",
     "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "three": "0.186.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "0.186.0",
     "tsx": "^4.20.6",
     "typescript": "~7.0.2",
     "vitest": "4.1.11"

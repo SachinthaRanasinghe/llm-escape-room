@@ -28,12 +28,14 @@ import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './te
  * purpose: `scripts/` is the harness side, where reading the environment is
  * exactly right.
  *
- * When TICKET-9 adds `lib/artifact/`, add it to ARTIFACT_SIDE.
+ * TICKET-8 (#5) added the replay — `lib/replay` and `components` — to both
+ * lists: it is the code that actually ships to a viewer's browser. When TICKET-9
+ * adds `lib/artifact/`, add it to ARTIFACT_SIDE.
  */
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SWEPT_DIRS = ['lib', 'app', 'fixtures'];
-const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'fixtures', 'app'];
+const SWEPT_DIRS = ['lib', 'app', 'components', 'fixtures'];
+const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'components', 'fixtures', 'app'];
 
 function walk(dir: string, keep: (path: string) => boolean): string[] {
   const out: string[] = [];

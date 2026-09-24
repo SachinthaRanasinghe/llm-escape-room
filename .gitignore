@@ -24,6 +24,11 @@ build/
 .next/
 next-env.d.ts
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+
 # TypeScript
 *.tsbuildinfo
 *.log

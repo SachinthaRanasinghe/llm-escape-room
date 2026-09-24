@@ -1,0 +1,260 @@
+/*
+ * Replay chrome. The 3D scene is the footage: it keeps its size and brightness.
+ * Everything around it is restrained — opacity over transforms, nothing
+ * decorative, the system font stack (no font download, so the build stays
+ * offline-safe).
+ *
+ * TYPOGRAPHY IS SPIKE 3's KNOB. If an intent does not read at beat pace, tune
+ * --intent-size / --intent-long-size / line-height here (and the constants in
+ * lib/replay/beats.ts) — never truncate. There is deliberately no
+ * text-overflow and no line clamp anywhere in this file.
+ */
+
+.root {
+  --bg: #0f1115;
+  --surface: #181b21;
+  --text: #eceae4;
+  --muted: #9aa0aa;
+  --rule: #2a2e36;
+  --lane-a: #e0a458; /* must match LANE_COLOURS in palette.ts */
+  --lane-b: #5ab1bb;
+  --success: #6fcf86;
+  --failure: #e0655b;
+  --intent-size: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);
+  --intent-long-size: clamp(1rem, 0.92rem + 0.4vw, 1.25rem);
+  --fade: 180ms;
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    --fade: 0ms;
+  }
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+}
+
+.button {
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color var(--fade);
+}
+
+.button:hover,
+.button:focus-visible {
+  border-color: var(--muted);
+}
+
+.stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.lanes {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  flex: 1;
+}
+
+.lane {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-width: 0;
+}
+
+.view {
+  flex: 1;
+  min-height: 46vh;
+}
+
+.panel {
+  background: var(--surface);
+  border-top: 3px solid var(--lane);
+  padding: 16px 24px 12px;
+  min-height: 12.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.laneA {
+  --lane: var(--lane-a);
+}
+
+.laneB {
+  --lane: var(--lane-b);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.model {
+  font-weight: 600;
+  color: var(--lane);
+}
+
+.provider {
+  color: var(--muted);
+}
+
+.count {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.beat {
+  animation: fadeIn var(--fade) ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.intent {
+  margin: 0;
+  font-size: var(--intent-size);
+  line-height: 1.35;
+  font-weight: 500;
+  max-width: 36ch;
+  overflow-wrap: anywhere;
+}
+
+.intent::before {
+  content: '\201C';
+}
+
+.intent::after {
+  content: '\201D';
+}
+
+.intentLong {
+  font-size: var(--intent-long-size);
+}
+
+.noIntent {
+  margin: 0;
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.action {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.verdict {
+  margin: 0;
+  font-size: 0.9375rem;
+  transition: opacity var(--fade);
+}
+
+.success {
+  color: var(--success);
+}
+
+.neutral {
+  color: var(--text);
+}
+
+.failure,
+.invalid {
+  color: var(--failure);
+}
+
+.status,
+.ready {
+  margin: 0;
+  flex: 1;
+  font-size: var(--intent-size);
+  font-weight: 600;
+}
+
+.ready {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.stats {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .bar {
+    padding: 12px 16px;
+  }
+
+  .lanes {
+    grid-template-columns: 1fr;
+  }
+
+  .view {
+    min-height: 38vh;
+  }
+
+  .panel {
+    padding: 12px 16px;
+    min-height: 10rem;
+  }
+}

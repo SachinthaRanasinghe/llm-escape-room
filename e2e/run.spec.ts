@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { loadArtifact } from '@/lib/artifact';
+import { captureBeacons, TELEMETRY_HOST } from './telemetry';
 
 /**
  * The published run in a real browser — TICKET-9 (#9).
@@ -14,7 +15,17 @@ import { loadArtifact } from '@/lib/artifact';
  *
  * TICKET-10 (#10) adds the post-run comparison: hidden until the end or a skip,
  * honesty text on the page and never in a tooltip, kept through a restart.
+ *
+ * TICKET-11 (#11) allows ONE foreign host: the telemetry beacon, which the e2e
+ * server is configured to send and every test here answers locally.
+ * `e2e/telemetry.spec.ts` pins what it says, field by field.
  */
+
+// No beacon ever leaves the machine. A test that inspects them registers its own
+// capture later, which Playwright matches first.
+test.beforeEach(async ({ page }) => {
+  await captureBeacons(page);
+});
 
 const artifact = loadArtifact('canonical');
 const plan = artifact.manifest.beatPlan;
@@ -62,6 +73,7 @@ test('makes no request beyond its own origin, start to finish', async ({ page, b
   test.setTimeout(150_000);
   const origin = new URL(baseURL!).origin;
   const requests: string[] = [];
+  const beacons = await captureBeacons(page);
   page.on('request', (r) => requests.push(r.url()));
   page.on('websocket', (ws) => requests.push(ws.url()));
 
@@ -74,8 +86,13 @@ test('makes no request beyond its own origin, start to finish', async ({ page, b
 
   expect(requests.length).toBeGreaterThan(0);
   // `next dev`'s HMR socket is ws:// on the same host — compare host, not scheme.
-  const foreign = requests.filter((u) => new URL(u).host !== new URL(origin).host);
+  const foreign = requests.filter((u) => ![new URL(origin).host, TELEMETRY_HOST].includes(new URL(u).host));
   expect(foreign).toEqual([]);
+  // The one allowed foreign host is only ever the beacon endpoint.
+  const telemetry = requests.filter((u) => new URL(u).host === TELEMETRY_HOST);
+  expect(telemetry.every((u) => new URL(u).pathname === '/api/send')).toBe(true);
+  expect(beacons.length).toBeGreaterThan(0);
+  expect(beacons.every((b) => b.method === 'POST' && b.path === '/api/send')).toBe(true);
   expect(requests.filter((u) => /groq|googleapis/.test(u))).toEqual([]);
 });
 

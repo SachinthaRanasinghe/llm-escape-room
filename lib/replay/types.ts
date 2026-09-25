@@ -125,3 +125,15 @@ export interface LaneRoomState {
   readonly held: readonly string[];
   readonly escaped: boolean;
 }
+
+/**
+ * What the player reports to an observer — TICKET-11 (#11). The replay clock's
+ * time (never the wall clock, so paused time does not count), the playback
+ * state, and whether the viewer skipped to the results. Lives here, not in
+ * `lib/telemetry`, so the scene never imports telemetry.
+ */
+export interface PlaybackProgress {
+  readonly tMs: number;
+  readonly state: 'playing' | 'paused' | 'ended';
+  readonly skipped: boolean;
+}

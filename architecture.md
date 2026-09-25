@@ -95,6 +95,8 @@ served statically. A database is a later problem, and a reversible one.
 - **Secrets.** Provider keys live in the harness environment only. The published artifact is pure data and ships
   no key, no endpoint and no inference path.
 - **Replay ↔ artifact.** One-way. The player reads the artifact; it cannot reach a provider even in principle.
+  The published page sends four anonymous watch-through events to one telemetry host, and nothing else leaves it
+  (`docs/decisions/telemetry.md`).
 
 ### Other calls
 
@@ -117,7 +119,8 @@ served statically. A database is a later problem, and a reversible one.
 - **The tool-spec equivalence check.** Without it the fairness claim is an assertion.
 - **The R3F replay player** — scene, character rig, beat scheduler, intent display, think-time stat.
 - **The render manifest freeze step.**
-- **Watch-through telemetry.** The PRD's first success metric currently has nowhere to land.
+- **Watch-through telemetry.** ~~The PRD's first success metric currently has nowhere to land.~~ Decided: Umami
+  Cloud. See `docs/decisions/telemetry.md` (TICKET-11).
 - **The video export path.** Deferred, but named so it stays deferred rather than forgotten.
 
 ## Spikes & experiments
@@ -154,7 +157,8 @@ Run 1 and 2 together; they share a harness. Run 3 in parallel, since it needs no
   difficulty near their ceiling. Spike 1 answers whether this is needed.
 - **Is "freshly generated" genuinely contamination-proof?** Unproven. Structural-similarity comparison across
   generated rooms would settle it; not gating the MVP.
-- **Watch-through telemetry.** Needs a home before the first public run; deliberately unchosen here.
+- **Watch-through telemetry.** ~~Needs a home before the first public run; deliberately unchosen here.~~ Decided:
+  Umami Cloud. See `docs/decisions/telemetry.md`.
 - **When video export lands.** After the first public run tells us whether a link is enough for a feed.
 - **Does the interface framing still bias results** even with equivalent compiled tool specs? The equivalence
   check constrains it; only running both interfaces would prove it, and that was rejected on quota.

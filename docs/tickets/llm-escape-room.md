@@ -39,7 +39,7 @@ issue numbers and are correct.
 | TICKET-8 | [#5](https://github.com/SachinthaRanasinghe/llm-escape-room/issues/5) | 2 |
 | TICKET-9 | [#9](https://github.com/SachinthaRanasinghe/llm-escape-room/issues/9) | 4 |
 | TICKET-10 | [#10](https://github.com/SachinthaRanasinghe/llm-escape-room/issues/10) | 5 |
-| TICKET-11 | [#11](https://github.com/SachinthaRanasinghe/llm-escape-room/issues/11) | 5 — blocked on a decision |
+| TICKET-11 | [#11](https://github.com/SachinthaRanasinghe/llm-escape-room/issues/11) | 5 — decision made: Umami Cloud (`docs/decisions/telemetry.md`) |
 
 ---
 
@@ -155,12 +155,12 @@ issue numbers and are correct.
 
 ### TICKET-11 — Watch-through telemetry
 - **Scope / AC:** record opens, 30-second survival, and completion for a replay URL, so the PRD's first success
-  metric has somewhere to land. **Blocked on an open decision** — the architecture deliberately leaves the
-  telemetry home unchosen. Decide it before planning this ticket.
+  metric has somewhere to land. ~~Blocked on an open decision.~~ Decided in planning: Umami Cloud, see
+  `docs/decisions/telemetry.md`.
 - **Per-ticket context:** PRD → *Success metrics · Watch-through*, and the wrong-condition "viewers drop inside
   the first 30 seconds". Architecture → *Missing pieces*, *Open questions*.
 - **Files (est.):** `lib/telemetry/*`, replay player hook
-- **Size:** ~300–500 lines · **Depends on:** TICKET-9 · **Also blocked on:** a telemetry decision
+- **Size:** ~300–500 lines · **Depends on:** TICKET-9 · ~~**Also blocked on:** a telemetry decision~~ (made)
 
 **Deferred, not sliced:** video export (a second reader of the same log), tournaments, difficulty tiers, hints,
 adaptive mid-run events, more than two models, accounts.

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ReplayPlayer } from '@/components/scene/ReplayPlayer';
+import { TrackedReplay } from '@/components/telemetry/TrackedReplay';
 import {
   ArtifactError,
   comparisonFromArtifact,
@@ -9,6 +10,7 @@ import {
   replayFromArtifact,
   type PublishedArtifact,
 } from '@/lib/artifact';
+import { readTelemetryConfig } from '@/lib/telemetry/config';
 
 /**
  * A published run — the URL you send someone. TICKET-9 (#9).
@@ -32,6 +34,12 @@ import {
  * The post-run comparison (TICKET-10, #10) is computed here too, at build time,
  * from the artifact's run, repeat counts and log, and handed to the player as
  * plain strings — the player reveals it at the end, and decides nothing in it.
+ *
+ * Watch-through telemetry (TICKET-11, #11): the Umami website id is read here,
+ * at BUILD time, and baked into the page. With `UMAMI_WEBSITE_ID` unset the page
+ * is the bare player and requests nothing beyond its own origin; with it set,
+ * `TrackedReplay` sends four anonymous events. An invalid id fails the build.
+ * Changing it needs a rebuild.
  */
 
 export const dynamicParams = false;
@@ -65,5 +73,10 @@ export default async function RunPage({ params }: Props) {
   const artifact = load(id);
   const { data, renderer } = replayFromArtifact(artifact);
   const comparison = comparisonFromArtifact(artifact);
-  return <ReplayPlayer data={data} renderer={renderer} comparison={comparison} />;
+  const telemetry = readTelemetryConfig();
+  return telemetry ? (
+    <TrackedReplay data={data} renderer={renderer} comparison={comparison} runId={id} telemetry={telemetry} />
+  ) : (
+    <ReplayPlayer data={data} renderer={renderer} comparison={comparison} />
+  );
 }

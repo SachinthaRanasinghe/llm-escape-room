@@ -32,11 +32,17 @@ import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './te
  * lists: it is the code that actually ships to a viewer's browser. TICKET-9 (#9)
  * added `lib/artifact/` to ARTIFACT_SIDE and `published/` — the artifacts a
  * `/run/<id>` URL actually serves — to the JSON scan.
+ *
+ * TICKET-11 (#11) adds the one other env read, `lib/telemetry/config.ts`: the
+ * Umami website id — a public identifier, not a key — read at build time by the
+ * `/run/[id]` server page. The Umami API key is read only in
+ * `scripts/watch-through.mts`. `lib/telemetry` joins ARTIFACT_SIDE, so
+ * telemetry can never import a provider.
  */
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SWEPT_DIRS = ['lib', 'app', 'components', 'fixtures'];
-const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'lib/artifact', 'lib/comparison', 'components', 'fixtures', 'app'];
+const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'lib/artifact', 'lib/comparison', 'lib/telemetry', 'components', 'fixtures', 'app'];
 
 function walk(dir: string, keep: (path: string) => boolean): string[] {
   const out: string[] = [];
@@ -66,9 +72,9 @@ describe('the sweep sees the codebase', () => {
 });
 
 describe('secrets stay on the harness side', () => {
-  it('reads process.env only in lib/providers/env.ts', () => {
-    const readers = sources.filter((s) => ENV_READ.test(s.text)).map((s) => s.path);
-    expect(readers).toEqual(['lib/providers/env.ts']);
+  it('reads process.env only in lib/providers/env.ts and lib/telemetry/config.ts', () => {
+    const readers = sources.filter((s) => ENV_READ.test(s.text)).map((s) => s.path).sort();
+    expect(readers).toEqual(['lib/providers/env.ts', 'lib/telemetry/config.ts']);
   });
 
   it('never lets the artifact side import a provider', () => {

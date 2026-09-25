@@ -18,7 +18,7 @@ vocabulary, the solver certifies a room before it is ever run, the provider adap
 models provably the same task, the generator writes fresh rooms that the solver has certified, and
 the harness races two models through one of them and writes the event log. The replay player plays
 the golden fixture log at `/replay`, and a finished run can be published as a frozen artifact that
-plays at `/run/<id>`.
+plays at `/run/<id>`, ends in a post-run comparison, and reports anonymous watch-through telemetry.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -105,6 +105,16 @@ its silent repeats, with the counts, plus the nondeterminism limitation. The scr
 named in the run's `matchup.json` into the artifact's `repeats` block; build and load both refuse counts
 that contradict the run's typicality verdict. `lib/comparison/` holds the one definition of "who won" and
 "typical" that the harness and the page share.
+
+A published run reports **watch-through telemetry** to Umami Cloud, the PRD's first success metric
+(`docs/decisions/telemetry.md`). There are four anonymous events, each sent at most once per page load:
+`run-open`, `run-t30` (30 seconds on the replay clock, so paused time does not count), `run-complete`
+(playback reached its end) and `run-skip` ("Skip to results", never counted as complete). A beacon says
+only the site id, the host, `/run/<id>` and the event name. There is no cookie and no visitor id, and
+`/replay` sends nothing. Telemetry is on only when `UMAMI_WEBSITE_ID` is set for `next build`: set it in
+the environment that builds the public site, not in a local `.env`. To read the funnel back against the
+≥ 50% target, run `node --env-file-if-exists=.env --import tsx scripts/watch-through.mts` with
+`UMAMI_API_KEY` set.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

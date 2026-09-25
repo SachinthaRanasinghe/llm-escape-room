@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { TEST_WEBSITE_ID } from './e2e/telemetry';
 
 /**
  * Playwright owns `*.spec.ts` under `e2e/`; Vitest owns `*.test.ts(x)`. The two
@@ -35,6 +36,12 @@ export default defineConfig({
     command: `pnpm dev --port ${PORT}`,
     url: `http://localhost:${PORT}/replay`,
     reuseExistingServer: !process.env.CI,
+    // TICKET-11 (#11): `/run/<id>` renders its telemetry wrapper only with a
+    // website id. `process.env` beats `.env` in Next's load order, so e2e never
+    // uses a real id — and the specs intercept every beacon regardless. A dev
+    // server you already had running without this is reused as-is, and
+    // `e2e/telemetry.spec.ts` says so.
+    env: { UMAMI_WEBSITE_ID: TEST_WEBSITE_ID },
     timeout: 120_000,
   },
 });

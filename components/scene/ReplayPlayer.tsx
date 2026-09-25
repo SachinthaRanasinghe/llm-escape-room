@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { Comparison } from '@/components/comparison/Comparison';
 import type { ComparisonData } from '@/lib/comparison';
-import { planBeats, type RendererSnapshot, type ReplayData } from '@/lib/replay';
+import { planBeats, type PlaybackProgress, type RendererSnapshot, type ReplayData } from '@/lib/replay';
 import { Controls } from './Controls';
 import { LanePanel } from './LanePanel';
 import { usePlayback, useReducedMotion } from './usePlayback';
@@ -28,6 +28,12 @@ import styles from './replay.module.css';
  * stays revealed through restarts — so the result is never spoiled before the
  * viewer chooses to see it, and never taken away once they have. `/replay`
  * passes none and shows neither the button nor the results.
+ *
+ * `onProgress` (TICKET-11, #11) is how a published run is observed. It fires
+ * when the panels move (`moments`, about four times a beat), when the state
+ * changes, and on a skip — never per frame — and it reports the REPLAY clock,
+ * not the wall clock, so paused time never counts. The player itself sends
+ * nothing: `components/telemetry/TrackedReplay.tsx` does.
  */
 
 const ReplayStage = dynamic(() => import('./ReplayStage'), { ssr: false });
@@ -38,9 +44,10 @@ interface Props {
   readonly data: ReplayData;
   readonly renderer: RendererSnapshot;
   readonly comparison?: ComparisonData;
+  readonly onProgress?: (progress: PlaybackProgress) => void;
 }
 
-export function ReplayPlayer({ data, renderer, comparison }: Props) {
+export function ReplayPlayer({ data, renderer, comparison, onProgress }: Props) {
   const plan = useMemo(() => planBeats(data, renderer.timing), [data, renderer]);
   const { timeRef, moments, state, toggle, restart } = usePlayback(plan);
   const reduced = useReducedMotion();
@@ -61,6 +68,15 @@ export function ReplayPlayer({ data, renderer, comparison }: Props) {
     });
     return () => cancelAnimationFrame(frame);
   }, [skipped, shown, reduced]);
+
+  // The latest callback, without re-running the report on every parent render.
+  const report = useRef(onProgress);
+  useEffect(() => {
+    report.current = onProgress;
+  }, [onProgress]);
+  useEffect(() => {
+    report.current?.({ tMs: timeRef.current, state, skipped });
+  }, [moments, state, skipped, timeRef]);
 
   const container = useRef<HTMLDivElement>(null);
   const trackA = useRef<HTMLDivElement>(null);

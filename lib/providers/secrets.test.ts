@@ -13,15 +13,15 @@ import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './te
  * THE SECRETS SWEEP — "a test asserts no key or endpoint can reach a published
  * artifact" (TICKET-4).
  *
- * The published artifact does not exist yet (TICKET-9, #9), so this asserts its
- * preconditions structurally, the way `lib/solver/purity.test.ts` does: source
- * READ FROM DISK, so a file added next month is swept the day it lands.
+ * Asserted structurally, the way `lib/solver/purity.test.ts` does: source READ
+ * FROM DISK, so a file added next month is swept the day it lands.
  *
  *   1. Only `lib/providers/env.ts` reads `process.env`.
  *   2. Nothing on the artifact side — schema, sim, solver, fixtures, app — can
  *      import the providers at all.
  *   3. The endpoints are named only in the two adapters.
- *   4. The committed JSON contains no URL and nothing shaped like a key.
+ *   4. The committed JSON — fixtures and published artifacts — contains no URL
+ *      and nothing shaped like a key.
  *   5. What an adapter returns, and what it throws, carries neither.
  *
  * `scripts/`, `next.config.ts` and `vitest.config.mts` are outside the sweep on
@@ -29,13 +29,14 @@ import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './te
  * exactly right.
  *
  * TICKET-8 (#5) added the replay — `lib/replay` and `components` — to both
- * lists: it is the code that actually ships to a viewer's browser. When TICKET-9
- * adds `lib/artifact/`, add it to ARTIFACT_SIDE.
+ * lists: it is the code that actually ships to a viewer's browser. TICKET-9 (#9)
+ * added `lib/artifact/` to ARTIFACT_SIDE and `published/` — the artifacts a
+ * `/run/<id>` URL actually serves — to the JSON scan.
  */
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SWEPT_DIRS = ['lib', 'app', 'components', 'fixtures'];
-const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'components', 'fixtures', 'app'];
+const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'lib/artifact', 'components', 'fixtures', 'app'];
 
 function walk(dir: string, keep: (path: string) => boolean): string[] {
   const out: string[] = [];
@@ -83,8 +84,8 @@ describe('secrets stay on the harness side', () => {
     expect(namers).toEqual(['lib/providers/gemini.ts', 'lib/providers/groq.ts']);
   });
 
-  it('commits no URL and nothing key-shaped in fixture JSON', () => {
-    const json = walk(join(ROOT, 'fixtures'), (path) => path.endsWith('.json'));
+  it.each(['fixtures', 'published'])('commits no URL and nothing key-shaped in %s JSON', (dir) => {
+    const json = walk(join(ROOT, dir), (path) => path.endsWith('.json'));
     expect(json.length).toBeGreaterThan(0);
     for (const path of json) {
       const text = readFileSync(path, 'utf8');

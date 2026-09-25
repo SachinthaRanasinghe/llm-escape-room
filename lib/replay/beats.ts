@@ -1,3 +1,4 @@
+import type { BeatTiming } from './renderer';
 import type { BeatPlan, LaneMoment, ReplayData } from './types';
 
 /**
@@ -21,8 +22,13 @@ import type { BeatPlan, LaneMoment, ReplayData } from './types';
  * ── Retuning ───────────────────────────────────────────────────────────────
  * Spike 3 (`docs/decisions/replay-legibility.md`) turns only these knobs and the
  * intent typography — never the model's words. Change a constant, bump
- * `RENDERER_VERSION`, update the note. TICKET-9 (#9) freezes all of them into the
- * render manifest so a published run never re-paces under a viewer.
+ * `RENDERER_VERSION`'s minor, update the note.
+ *
+ * ── Frozen per published run ───────────────────────────────────────────────
+ * These constants are only the DEFAULT. `planBeats` takes a `BeatTiming`, and
+ * `laneAt` reads everything from the plan, so a published run plays the timing
+ * frozen into its render manifest (TICKET-9, #9 — `lib/replay/renderer.ts`) and
+ * never re-paces under a viewer when these change.
  *
  * Pure arithmetic: no clock, no loop over time.
  */
@@ -44,20 +50,44 @@ export const WALK_FRACTION = 0.3;
 /** ...act on it; the rest of the beat holds the verdict while the intent is read. */
 export const ACT_FRACTION = 0.25;
 export const WATCH_TARGET_MS = { min: 60_000, max: 90_000 } as const;
-/** Bumped whenever any constant above changes. TICKET-9 (#9) freezes it into the render manifest. */
+/** After its last beat, an escaped character walks out through the exit… */
+export const EXIT_WALK_MS = 1500;
+/** …and fades. */
+export const EXIT_FADE_MS = 1000;
+/**
+ * `replay-v<major>.<minor>`. Bump the minor whenever any constant above — or any
+ * value in `lib/replay/renderer.ts` — changes. TICKET-9 (#9) freezes it into the
+ * render manifest.
+ */
 export const RENDERER_VERSION = 'replay-v0.1';
 
-export function planBeats(data: ReplayData): BeatPlan {
-  const laneOffsetsMs = data.lanes.map((_, i) => i * LANE_OFFSET_MS);
+/** The constants above, as the data a render manifest freezes. */
+export const DEFAULT_TIMING: BeatTiming = {
+  beatMs: BEAT_MS,
+  introMs: INTRO_MS,
+  outroMs: OUTRO_MS,
+  laneOffsetMs: LANE_OFFSET_MS,
+  walkFraction: WALK_FRACTION,
+  actFraction: ACT_FRACTION,
+  exitWalkMs: EXIT_WALK_MS,
+  exitFadeMs: EXIT_FADE_MS,
+};
+
+export function planBeats(data: ReplayData, timing: BeatTiming = DEFAULT_TIMING): BeatPlan {
+  const laneOffsetsMs = data.lanes.map((_, i) => i * timing.laneOffsetMs);
   const beatCounts = data.lanes.map((lane) => lane.beats.length);
-  const longest = Math.max(0, ...beatCounts.map((count, i) => laneOffsetsMs[i] + count * BEAT_MS));
+  const longest = Math.max(0, ...beatCounts.map((count, i) => laneOffsetsMs[i] + count * timing.beatMs));
   return {
-    beatMs: BEAT_MS,
-    introMs: INTRO_MS,
-    outroMs: OUTRO_MS,
+    beatMs: timing.beatMs,
+    introMs: timing.introMs,
+    outroMs: timing.outroMs,
     laneOffsetsMs,
     beatCounts,
-    totalMs: INTRO_MS + longest + OUTRO_MS,
+    totalMs: timing.introMs + longest + timing.outroMs,
+    walkFraction: timing.walkFraction,
+    actFraction: timing.actFraction,
+    exitWalkMs: timing.exitWalkMs,
+    exitFadeMs: timing.exitFadeMs,
   };
 }
 
@@ -80,8 +110,8 @@ export function laneAt(plan: BeatPlan, laneIndex: number, tMs: number): LaneMome
 
   // Whole milliseconds, so a phase boundary lands exactly where the constants say.
   const within = elapsed - beatIndex * plan.beatMs;
-  const walkMs = Math.round(plan.beatMs * WALK_FRACTION);
-  const actMs = Math.round(plan.beatMs * ACT_FRACTION);
+  const walkMs = Math.round(plan.beatMs * plan.walkFraction);
+  const actMs = Math.round(plan.beatMs * plan.actFraction);
   if (within < walkMs) return { beatIndex, phase: 'walk', progress: within / walkMs };
   if (within < walkMs + actMs) return { beatIndex, phase: 'act', progress: (within - walkMs) / actMs };
   return { beatIndex, phase: 'hold', progress: (within - walkMs - actMs) / (plan.beatMs - walkMs - actMs) };

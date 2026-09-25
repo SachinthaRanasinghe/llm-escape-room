@@ -1,8 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo, useRef, type RefObject } from 'react';
-import { planBeats, type ReplayData } from '@/lib/replay';
+import { useMemo, useRef, type CSSProperties, type RefObject } from 'react';
+import { planBeats, type RendererSnapshot, type ReplayData } from '@/lib/replay';
 import { Controls } from './Controls';
 import { LanePanel } from './LanePanel';
 import { usePlayback, useReducedMotion } from './usePlayback';
@@ -11,19 +11,28 @@ import styles from './replay.module.css';
 /**
  * The replay player — two rooms side by side, each with its panel, and one clock.
  *
- * It receives `ReplayData` and nothing else: no room spec, no fixture, no
- * provider. The server page built that data; this component only plays it. That
- * one-way shape is `architecture.md`'s "Replay ↔ artifact" boundary, and it is
- * what lets TICKET-9 (#9) swap the fixture for a published artifact without
- * touching anything in here.
+ * It receives `ReplayData` and a `RendererSnapshot`, and nothing else: no room
+ * spec, no fixture, no provider. The server page built both; this component only
+ * plays them. That one-way shape is `architecture.md`'s "Replay ↔ artifact"
+ * boundary.
+ *
+ * `renderer` is the whole of how the run looks — timing, camera, colours,
+ * proportions. `/replay` passes the live one; `/run/[id]` passes the snapshot
+ * frozen into the published artifact (TICKET-9, #9), which is why nothing below
+ * this component reads a renderer constant.
  */
 
 const ReplayStage = dynamic(() => import('./ReplayStage'), { ssr: false });
 
 const LANE_CLASSES = [styles.laneA, styles.laneB];
 
-export function ReplayPlayer({ data }: { readonly data: ReplayData }) {
-  const plan = useMemo(() => planBeats(data), [data]);
+interface Props {
+  readonly data: ReplayData;
+  readonly renderer: RendererSnapshot;
+}
+
+export function ReplayPlayer({ data, renderer }: Props) {
+  const plan = useMemo(() => planBeats(data, renderer.timing), [data, renderer]);
   const { timeRef, moments, state, toggle, restart } = usePlayback(plan);
   const reduced = useReducedMotion();
 
@@ -33,7 +42,7 @@ export function ReplayPlayer({ data }: { readonly data: ReplayData }) {
   const tracks = [trackA, trackB].slice(0, data.lanes.length) as RefObject<HTMLElement>[];
 
   return (
-    <main className={styles.root} data-testid="replay" data-state={state}>
+    <main className={styles.root} style={laneColourVars(renderer)} data-testid="replay" data-state={state}>
       <header className={styles.bar}>
         <h1 className={styles.title}>{data.layout.themeName}</h1>
         <Controls state={state} onToggle={toggle} onRestart={restart} />
@@ -50,6 +59,7 @@ export function ReplayPlayer({ data }: { readonly data: ReplayData }) {
         </div>
         <ReplayStage
           data={data}
+          renderer={renderer}
           plan={plan}
           moments={moments}
           timeRef={timeRef}
@@ -60,4 +70,10 @@ export function ReplayPlayer({ data }: { readonly data: ReplayData }) {
       </div>
     </main>
   );
+}
+
+/** The chrome's lane colours, from the snapshot, so the panels match the characters. */
+function laneColourVars(renderer: RendererSnapshot): CSSProperties {
+  const [a, b] = renderer.assets.laneColours;
+  return { '--lane-a': a, '--lane-b': b ?? a } as CSSProperties;
 }

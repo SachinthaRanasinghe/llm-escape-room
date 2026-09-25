@@ -21,6 +21,16 @@ function intentOf(competitorId: string, seq: number): string {
   return log.find((e) => e.competitorId === competitorId && e.seq === seq)!.action!.intent;
 }
 
+/**
+ * Fake time that moves ONLY when the test advances it. A bare `clock.install()`
+ * keeps flowing in real time, so however long the page takes to load leaks into
+ * the replay's clock and a beat-exact assertion passes or fails with machine load.
+ */
+async function freezeClock(page: Page): Promise<void> {
+  await page.clock.install({ time: 0 });
+  await page.clock.pauseAt(1000);
+}
+
 async function advance(page: Page, ms: number): Promise<void> {
   for (let left = ms; left > 0; left -= 1000) await page.clock.runFor(Math.min(1000, left));
 }
@@ -46,7 +56,7 @@ test('renders a WebGL canvas and both lanes, with no errors', async ({ page }) =
 });
 
 test('shows each intent verbatim, lane by lane, with real think-time', async ({ page }) => {
-  await page.clock.install();
+  await freezeClock(page);
   await page.goto('/replay');
   await expect(page.getByTestId('status-model-a')).toHaveText('Ready');
 
@@ -59,13 +69,14 @@ test('shows each intent verbatim, lane by lane, with real think-time', async ({ 
   await expect(page.getByTestId('intent-model-b')).toHaveText(intentOf('model-b', 0));
   await expect(page.getByTestId('think-model-b')).toContainText('2.0 s');
 
+  // t = INTRO + 100 + LANE_OFFSET + BEAT = 10.6 s: lane A is one beat on, on seq 1.
   await advance(page, BEAT_MS);
-  await expect(page.getByTestId('intent-model-a')).toHaveText(intentOf('model-a', 2));
+  await expect(page.getByTestId('intent-model-a')).toHaveText(intentOf('model-a', 1));
 });
 
 test('plays to the end, then restarts', async ({ page }) => {
   test.setTimeout(150_000);
-  await page.clock.install();
+  await freezeClock(page);
   await page.goto('/replay');
   const root = page.getByTestId('replay');
   await expect(root).toHaveAttribute('data-state', 'playing');

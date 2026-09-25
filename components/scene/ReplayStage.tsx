@@ -3,8 +3,7 @@
 import { View } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import type { RefObject } from 'react';
-import type { BeatPlan, LaneMoment, ReplayData } from '@/lib/replay';
-import { LANE_COLOURS } from './palette';
+import type { BeatPlan, LaneMoment, RendererSnapshot, ReplayData } from '@/lib/replay';
 import { RoomScene } from './RoomScene';
 
 /**
@@ -23,6 +22,7 @@ import { RoomScene } from './RoomScene';
 
 interface Props {
   readonly data: ReplayData;
+  readonly renderer: RendererSnapshot;
   readonly plan: BeatPlan;
   readonly moments: readonly LaneMoment[];
   readonly timeRef: RefObject<number>;
@@ -31,7 +31,8 @@ interface Props {
   readonly tracks: readonly RefObject<HTMLElement>[];
 }
 
-export default function ReplayStage({ data, plan, moments, timeRef, reduced, container, tracks }: Props) {
+export default function ReplayStage({ data, renderer, plan, moments, timeRef, reduced, container, tracks }: Props) {
+  const { laneColours } = renderer.assets;
   return (
     <Canvas
       eventSource={container}
@@ -48,8 +49,9 @@ export default function ReplayStage({ data, plan, moments, timeRef, reduced, con
             plan={plan}
             moment={moments[i]}
             timeRef={timeRef}
-            colour={LANE_COLOURS[i % LANE_COLOURS.length]}
+            colour={laneColours[i % laneColours.length]}
             reduced={reduced}
+            renderer={renderer}
           />
         </View>
       ))}

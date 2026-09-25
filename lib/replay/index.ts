@@ -11,6 +11,9 @@ export {
   ACT_FRACTION,
   BEAT_MS,
   beatStartMs,
+  DEFAULT_TIMING,
+  EXIT_FADE_MS,
+  EXIT_WALK_MS,
   INTRO_MS,
   isSettled,
   LANE_OFFSET_MS,
@@ -21,6 +24,17 @@ export {
   WALK_FRACTION,
   WATCH_TARGET_MS,
 } from './beats';
+export {
+  CURRENT_RENDERER,
+  rendererMajor,
+  SUPPORTED_RENDERER_MAJORS,
+  type BeatTiming,
+  type CameraPlan,
+  type RendererAssets,
+  type RendererSnapshot,
+  type SceneColours,
+  type StageGeometry,
+} from './renderer';
 export { laneStateAt } from './roomState';
 export {
   describeAction,

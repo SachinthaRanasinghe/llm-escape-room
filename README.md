@@ -17,7 +17,8 @@ In build. The v0 contracts and the fixture corpus exist, the simulator resolves 
 vocabulary, the solver certifies a room before it is ever run, the provider adapters hand both
 models provably the same task, the generator writes fresh rooms that the solver has certified, and
 the harness races two models through one of them and writes the event log. The replay player plays
-the golden fixture log at `/replay`.
+the golden fixture log at `/replay`, and a finished run can be published as a frozen artifact that
+plays at `/run/<id>`.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -85,6 +86,17 @@ the pacing. The intent is quoted exactly as the model wrote it, never trimmed, c
 boundary test keeps the client side away from the fixtures, the room schema, the providers, the
 network and any clock but the frame timestamp. To watch it, run `pnpm dev` and open `/replay`. To run
 the browser test, run `pnpm e2e` (the first time, `pnpm exec playwright install chromium`).
+
+`lib/artifact/` publishes a run. `node --import tsx scripts/publish.mts --run runs/<runId> --room <path>`
+writes `published/<id>.json`: the event log, the run record, and a **render manifest** that freezes
+everything about how the run looks — renderer version, beat timing and the computed beat plan, camera,
+colours, stage proportions and the public room layout. `/run/<id>` is built from it at build time and
+plays that frozen snapshot, so a published run replays identically however the renderer is retuned
+afterwards; `/replay` stays the live preview of the current renderer. Published is frozen: the script
+will not overwrite an artifact without `--force`. The artifact never holds the room spec, and tests
+scan every committed artifact for anything shaped like a URL or a key, keep `lib/artifact` away from the
+providers, and check in a browser that a published run requests nothing beyond its own origin.
+`published/canonical.json` is the golden fixture run (`scripts/publish.mts --canonical`).
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

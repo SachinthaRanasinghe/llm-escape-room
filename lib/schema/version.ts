@@ -34,6 +34,15 @@ export const LOG_VERSION = 0;
 export const RUN_VERSION = 0;
 
 /**
+ * The published-artifact ENVELOPE — which top-level fields a `published/<id>.json`
+ * carries (TICKET-9, #9) — versioned separately yet again. Adding, say, a block of
+ * repeat logs to the envelope should not invalidate the log inside it, and
+ * retuning the renderer never touches the envelope at all: that is the render
+ * manifest's own `rendererVersion`.
+ */
+export const ARTIFACT_VERSION = 0;
+
+/**
  * Written as a `z.literal` wherever it appears in a schema, so a payload from a
  * future version fails LOUDLY on read instead of half-parsing. A silent partial
  * read of a changed contract is the exact failure mode the version exists to
@@ -42,6 +51,7 @@ export const RUN_VERSION = 0;
 export const SpecVersionSchema = z.literal(SPEC_VERSION);
 export const LogVersionSchema = z.literal(LOG_VERSION);
 export const RunVersionSchema = z.literal(RUN_VERSION);
+export const ArtifactVersionSchema = z.literal(ARTIFACT_VERSION);
 
 /**
  * Base for the named error each schema module throws from its parse function.

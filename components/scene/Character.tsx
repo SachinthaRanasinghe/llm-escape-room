@@ -8,12 +8,12 @@ import {
   laneAt,
   VERDICT_TONE,
   type BeatPlan,
+  type RendererSnapshot,
   type ReplayBeat,
   type ReplayLane,
   type SceneLayout,
   type Vec2,
 } from '@/lib/replay';
-import { KIND_COLOUR } from './palette';
 import { yawToward } from './SceneObject';
 
 /**
@@ -30,12 +30,6 @@ import { yawToward } from './SceneObject';
  * that does not exist), ACT with a verb-specific gesture, then HOLD and react to
  * the verdict — a hop, a head shake, or a shrug. A rejected turn shrugs in place.
  */
-
-/** How far in front of an object the character stands. */
-const STAND_OFF = 0.9;
-/** After its last beat, an escaped character walks out through the exit and fades. */
-const EXIT_WALK_MS = 1500;
-const EXIT_FADE_MS = 1000;
 
 function easeInOut(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
@@ -54,9 +48,11 @@ interface Props {
   readonly colour: string;
   /** How many items the character is carrying. */
   readonly carrying: number;
+  readonly renderer: RendererSnapshot;
 }
 
-export function Character({ lane, laneIndex, layout, plan, timeRef, colour, carrying }: Props) {
+export function Character({ lane, laneIndex, layout, plan, timeRef, colour, carrying, renderer }: Props) {
+  const standOff = renderer.geometry.standOff;
   const root = useRef<Group>(null);
   const body = useRef<Group>(null);
   const head = useRef<Mesh>(null);
@@ -72,9 +68,9 @@ export function Character({ lane, laneIndex, layout, plan, timeRef, colour, carr
       const dx = layout.centre[0] - at[0];
       const dz = layout.centre[1] - at[1];
       const length = Math.hypot(dx, dz) || 1;
-      return [at[0] + (dx / length) * STAND_OFF, at[1] + (dz / length) * STAND_OFF];
+      return [at[0] + (dx / length) * standOff, at[1] + (dz / length) * standOff];
     };
-  }, [positions, layout]);
+  }, [positions, layout, standOff]);
 
   const exitAt = positions.get(layout.exitObjectId) ?? layout.centre;
 
@@ -138,11 +134,11 @@ export function Character({ lane, laneIndex, layout, plan, timeRef, colour, carr
         if (lane.escaped) {
           const since = t - beatStartMs(plan, laneIndex, lane.beats.length);
           const beyond: Vec2 = [exitAt[0], exitAt[1] - 1.2];
-          if (since < EXIT_WALK_MS) {
-            position = lerp2(last, exitAt, easeInOut(Math.max(0, since) / EXIT_WALK_MS));
+          if (since < plan.exitWalkMs) {
+            position = lerp2(last, exitAt, easeInOut(Math.max(0, since) / plan.exitWalkMs));
             yaw = yawToward(last, exitAt);
           } else {
-            const fade = Math.min(1, (since - EXIT_WALK_MS) / EXIT_FADE_MS);
+            const fade = Math.min(1, (since - plan.exitWalkMs) / plan.exitFadeMs);
             position = lerp2(exitAt, beyond, fade);
             yaw = Math.PI;
             opacity = 1 - fade;
@@ -185,7 +181,7 @@ export function Character({ lane, laneIndex, layout, plan, timeRef, colour, carr
         {Array.from({ length: carrying }, (_, i) => (
           <mesh key={i} position={[0.36, 0.72 + i * 0.16, 0.18]}>
             <boxGeometry args={[0.2, 0.14, 0.26]} />
-            <meshStandardMaterial color={KIND_COLOUR.portable} />
+            <meshStandardMaterial color={renderer.assets.kindColours.portable} />
           </mesh>
         ))}
       </group>

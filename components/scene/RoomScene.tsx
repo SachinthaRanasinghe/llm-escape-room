@@ -5,18 +5,17 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef, type RefObject } from 'react';
 import type { PerspectiveCamera as PerspectiveCameraImpl } from 'three';
 import {
-  BEAT_MS,
   isSettled,
   laneStateAt,
-  ROOM_HALF,
   VERDICT_TONE,
   type BeatPlan,
+  type CameraPlan,
+  type RendererSnapshot,
   type LaneMoment,
   type ReplayLane,
   type SceneLayout,
 } from '@/lib/replay';
 import { Character } from './Character';
-import { SCENE } from './palette';
 import { SceneObject, type Highlight } from './SceneObject';
 
 /**
@@ -27,20 +26,29 @@ import { SceneObject, type Highlight } from './SceneObject';
  * object stops being drawn in the room and rides on the character instead. What
  * is open, unlocked and held comes from `laneStateAt` — the log's `ok` verdicts —
  * recomputed only when the lane's coarse moment changes.
+ *
+ * Camera, colours and the stage's proportions all come from `renderer` — the
+ * live snapshot on `/replay`, the frozen one on `/run/[id]` — never a constant.
  */
 
-const WALL_HEIGHT = 1.6;
-const SWAY = 0.15;
+interface CameraRigProps {
+  readonly camera: CameraPlan;
+  readonly timeRef: RefObject<number>;
+  readonly reduced: boolean;
+}
 
-function CameraRig({ timeRef, reduced }: { readonly timeRef: RefObject<number>; readonly reduced: boolean }) {
+function CameraRig({ camera: plan, timeRef, reduced }: CameraRigProps) {
   const camera = useRef<PerspectiveCameraImpl>(null);
+  const [x, y, z] = plan.position;
+  const [lx, ly, lz] = plan.lookAt;
   useFrame(() => {
     if (!camera.current) return;
     const t = timeRef.current ?? 0;
-    camera.current.position.x = reduced ? 0 : Math.sin((t / (BEAT_MS * 4)) * Math.PI * 2) * SWAY;
-    camera.current.lookAt(0, 0.3, -1.4);
+    const sway = reduced ? 0 : Math.sin((t / plan.swayPeriodMs) * Math.PI * 2) * plan.swayAmplitude;
+    camera.current.position.x = x + sway;
+    camera.current.lookAt(lx, ly, lz);
   });
-  return <PerspectiveCamera ref={camera} makeDefault position={[0, 5.6, 6.2]} fov={42} />;
+  return <PerspectiveCamera ref={camera} makeDefault position={[x, y, z]} fov={plan.fov} />;
 }
 
 interface Props {
@@ -52,9 +60,12 @@ interface Props {
   readonly timeRef: RefObject<number>;
   readonly colour: string;
   readonly reduced: boolean;
+  readonly renderer: RendererSnapshot;
 }
 
-export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colour, reduced }: Props) {
+export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colour, reduced, renderer }: Props) {
+  const { scene } = renderer.assets;
+  const { roomHalf, wallHeight } = renderer.geometry;
   const settled = isSettled(moment);
   const state = useMemo(
     () => laneStateAt(lane, layout, moment.beatIndex, settled),
@@ -79,23 +90,23 @@ export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colo
 
   return (
     <>
-      <color attach="background" args={[SCENE.background]} />
-      <CameraRig timeRef={timeRef} reduced={reduced} />
+      <color attach="background" args={[scene.background]} />
+      <CameraRig camera={renderer.camera} timeRef={timeRef} reduced={reduced} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[3, 7, 5]} intensity={1.6} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[ROOM_HALF * 2, ROOM_HALF * 2]} />
-        <meshStandardMaterial color={SCENE.floor} roughness={1} />
+        <planeGeometry args={[roomHalf * 2, roomHalf * 2]} />
+        <meshStandardMaterial color={scene.floor} roughness={1} />
       </mesh>
-      <mesh position={[0, WALL_HEIGHT / 2, -ROOM_HALF]}>
-        <boxGeometry args={[ROOM_HALF * 2, WALL_HEIGHT, 0.1]} />
-        <meshStandardMaterial color={SCENE.wall} />
+      <mesh position={[0, wallHeight / 2, -roomHalf]}>
+        <boxGeometry args={[roomHalf * 2, wallHeight, 0.1]} />
+        <meshStandardMaterial color={scene.wall} />
       </mesh>
       {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * ROOM_HALF, WALL_HEIGHT / 2, 0]}>
-          <boxGeometry args={[0.1, WALL_HEIGHT, ROOM_HALF * 2]} />
-          <meshStandardMaterial color={SCENE.wall} />
+        <mesh key={side} position={[side * roomHalf, wallHeight / 2, 0]}>
+          <boxGeometry args={[0.1, wallHeight, roomHalf * 2]} />
+          <meshStandardMaterial color={scene.wall} />
         </mesh>
       ))}
 
@@ -108,6 +119,7 @@ export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colo
             opened={opened.has(object.id)}
             unlocked={unlocked.has(object.id)}
             highlight={highlightOf(object.id)}
+            assets={renderer.assets}
           />
         ) : (
           // Revealed contents sit on top of their open holder, nudged forward.
@@ -118,6 +130,7 @@ export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colo
               opened={false}
               unlocked={false}
               highlight={highlightOf(object.id)}
+              assets={renderer.assets}
             />
           </group>
         ),
@@ -131,6 +144,7 @@ export function RoomScene({ lane, laneIndex, layout, plan, moment, timeRef, colo
         timeRef={timeRef}
         colour={colour}
         carrying={state.held.length}
+        renderer={renderer}
       />
     </>
   );

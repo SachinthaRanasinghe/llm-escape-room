@@ -110,6 +110,12 @@ export interface BeatPlan {
   /** Per lane, in lane order. */
   readonly beatCounts: readonly number[];
   readonly totalMs: number;
+  /** Within a beat: the share spent walking to the target… */
+  readonly walkFraction: number;
+  /** …and acting on it. The rest holds the verdict. */
+  readonly actFraction: number;
+  readonly exitWalkMs: number;
+  readonly exitFadeMs: number;
 }
 
 /** What one lane's copy of the room looks like at a given beat. Sorted, deduplicated ids. */

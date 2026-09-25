@@ -67,6 +67,11 @@ intents of up to 280 characters, although the canonical log's range is 19–70.
 only the knobs in the table, re-run `pnpm test` (the band test fails if the total leaves 60–90 s), bump
 `RENDERER_VERSION`, and record the new values here.
 
+**Since TICKET-9 (#9):** a retune bumps `RENDERER_VERSION`'s **minor** and touches only the live renderer —
+`/replay` and anything published afterwards. Runs already published carry their own frozen timing, camera and colours
+in their render manifest and keep replaying exactly as they were published (`lib/replay/renderer.ts`). The intent
+typography is still CSS, not frozen data: if spike 3 retunes it, move those sizes into the renderer snapshot first.
+
 ## Consequences
 
 - **280-character intents don't fully read in one beat.** The schema allows them, but the canonical log never goes

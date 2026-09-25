@@ -32,3 +32,10 @@ returns a valid v1 payload, and it never reaches the network or the filesystem.
 Both the schemas **and** the committed fixtures in `fixtures/` have to move
 together — the fixtures are the contract four other tickets build against, so a
 migration that leaves them on v0 breaks the thing the fixtures exist to provide.
+
+So do the published artifacts in `published/` (TICKET-9, #9). Each one embeds a
+v0 run record and a v0 event log, and `/run/[id]` parses them at build time: a
+bump that leaves them on v0 breaks every URL anyone has shared, at the next
+build. Migrate their `run` and `log` in place; their render manifest does not
+change. `lib/artifact/canonical.test.ts` fails until `published/canonical.json`
+matches the migrated fixtures.

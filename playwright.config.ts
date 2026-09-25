@@ -15,6 +15,10 @@ export default defineConfig({
   testDir: 'e2e',
   testMatch: '**/*.spec.ts',
   timeout: 60_000,
+  // One browser at a time. SwiftShader renders WebGL on the CPU, and two replays
+  // playing side by side (a spec file per worker) starve each other until the
+  // playback tests time out. TICKET-9 (#9) added the second spec file.
+  workers: 1,
   use: {
     baseURL: `http://localhost:${PORT}`,
   },

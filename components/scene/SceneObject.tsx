@@ -3,8 +3,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { Color, MathUtils, type Group, type MeshStandardMaterial } from 'three';
-import type { SceneObject as SceneObjectData, Vec2, VerdictTone } from '@/lib/replay';
-import { KIND_COLOUR, SCENE } from './palette';
+import type { RendererAssets, SceneObject as SceneObjectData, Vec2, VerdictTone } from '@/lib/replay';
 
 /**
  * One room object as primitive geometry — one shape per `ObjectKind`, no assets.
@@ -14,17 +13,22 @@ import { KIND_COLOUR, SCENE } from './palette';
  * refs, never through React state. `highlight` is the one "where is it acting"
  * cue: the current beat's target glows while the character works on it, then
  * flashes the verdict's tone when it lands.
+ *
+ * Colours come from the renderer snapshot's `assets` (`lib/replay/renderer.ts`),
+ * so a published run keeps the palette it was published with.
  */
 
 export type Highlight = 'active' | VerdictTone | null;
 
-const HIGHLIGHT_COLOUR: Readonly<Record<Exclude<Highlight, null>, string>> = {
-  active: '#fff4e0',
-  success: SCENE.success,
-  neutral: '#c8c8c8',
-  failure: SCENE.failure,
-  invalid: SCENE.failure,
-};
+function highlightColours(assets: RendererAssets): Readonly<Record<Exclude<Highlight, null>, string>> {
+  return {
+    active: '#fff4e0',
+    success: assets.scene.success,
+    neutral: '#c8c8c8',
+    failure: assets.scene.failure,
+    invalid: assets.scene.failure,
+  };
+}
 const HIGHLIGHT_INTENSITY: Readonly<Record<Exclude<Highlight, null>, number>> = {
   active: 0.1,
   success: 0.45,
@@ -44,14 +48,16 @@ interface Props {
   readonly opened: boolean;
   readonly unlocked: boolean;
   readonly highlight: Highlight;
+  readonly assets: RendererAssets;
 }
 
-export function SceneObject({ object, centre, opened, unlocked, highlight }: Props) {
+export function SceneObject({ object, centre, opened, unlocked, highlight, assets }: Props) {
   const hinge = useRef<Group>(null);
   const body = useRef<MeshStandardMaterial>(null);
   const keypad = useRef<MeshStandardMaterial>(null);
   const glow = useMemo(() => new Color(), []);
   const keypadColour = useMemo(() => new Color(), []);
+  const highlightColour = useMemo(() => highlightColours(assets), [assets]);
 
   const [x, z] = object.position;
   const yaw = yawToward(object.position, centre);
@@ -63,7 +69,7 @@ export function SceneObject({ object, centre, opened, unlocked, highlight }: Pro
       hinge.current.rotation[axis] = MathUtils.damp(hinge.current.rotation[axis], target, 6, delta);
     }
     if (body.current) {
-      const colour = highlight ? HIGHLIGHT_COLOUR[highlight] : '#000000';
+      const colour = highlight ? highlightColour[highlight] : '#000000';
       body.current.emissive.lerp(glow.set(colour), Math.min(1, delta * 8));
       body.current.emissiveIntensity = MathUtils.damp(
         body.current.emissiveIntensity,
@@ -73,11 +79,11 @@ export function SceneObject({ object, centre, opened, unlocked, highlight }: Pro
       );
     }
     if (keypad.current) {
-      keypad.current.emissive.lerp(keypadColour.set(unlocked ? SCENE.unlocked : SCENE.locked), Math.min(1, delta * 6));
+      keypad.current.emissive.lerp(keypadColour.set(unlocked ? assets.scene.unlocked : assets.scene.locked), Math.min(1, delta * 6));
     }
   });
 
-  const colour = KIND_COLOUR[object.kind];
+  const colour = assets.kindColours[object.kind];
   const material = <meshStandardMaterial ref={body} color={colour} roughness={0.8} />;
 
   return (
@@ -109,7 +115,7 @@ export function SceneObject({ object, centre, opened, unlocked, highlight }: Pro
             </mesh>
             <mesh position={[0.66, 0.12, 0.03]}>
               <boxGeometry args={[0.16, 0.22, 0.02]} />
-              <meshStandardMaterial ref={keypad} color="#222" emissive={SCENE.locked} emissiveIntensity={0.9} />
+              <meshStandardMaterial ref={keypad} color="#222" emissive={assets.scene.locked} emissiveIntensity={0.9} />
             </mesh>
           </group>
         </>

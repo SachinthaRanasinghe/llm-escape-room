@@ -16,7 +16,7 @@
   --text: #eceae4;
   --muted: #9aa0aa;
   --rule: #2a2e36;
-  --lane-a: #e0a458; /* must match LANE_COLOURS in palette.ts */
+  --lane-a: #e0a458; /* fallback — ReplayPlayer sets both inline from the renderer snapshot's assets.laneColours */
   --lane-b: #5ab1bb;
   --success: #6fcf86;
   --failure: #e0655b;

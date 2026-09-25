@@ -36,7 +36,7 @@ import { geminiFunctionCallResponse, groqToolCallResponse, testDeps } from './te
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SWEPT_DIRS = ['lib', 'app', 'components', 'fixtures'];
-const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'lib/artifact', 'components', 'fixtures', 'app'];
+const ARTIFACT_SIDE = ['lib/schema', 'lib/sim', 'lib/solver', 'lib/replay', 'lib/artifact', 'lib/comparison', 'components', 'fixtures', 'app'];
 
 function walk(dir: string, keep: (path: string) => boolean): string[] {
   const out: string[] = [];

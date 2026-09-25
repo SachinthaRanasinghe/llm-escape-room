@@ -53,6 +53,8 @@ export function createAdapter(
 }
 
 export { createGenerationClient } from './generation';
+export { DEFAULT_DEPS, DEFAULT_RETRY } from './transport';
+export type { RetryPolicy, TransportDeps } from './transport';
 export { createGroqAdapter } from './groq';
 export { createGeminiAdapter } from './gemini';
 export { readProviderKey, PROVIDER_KEY_VARS } from './env';

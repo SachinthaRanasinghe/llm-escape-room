@@ -39,6 +39,10 @@ export const RUN_VERSION = 0;
  * repeat logs to the envelope should not invalidate the log inside it, and
  * retuning the renderer never touches the envelope at all: that is the render
  * manifest's own `rendererVersion`.
+ *
+ * TICKET-10 (#10) widened v0 IN PLACE with a required `repeats` block. Nothing
+ * but the regenerated `published/canonical.json` had been published at v0, so a
+ * bump would have migrated nothing.
  */
 export const ARTIFACT_VERSION = 0;
 

@@ -98,3 +98,10 @@ test('stacks the lanes on a phone without horizontal scroll', async ({ page }) =
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('the live preview has no post-run comparison — only a published run does (TICKET-10, #10)', async ({ page }) => {
+  await page.goto('/replay');
+  await expect(page.getByTestId('play-toggle')).toBeVisible();
+  await expect(page.getByTestId('skip-to-results')).toHaveCount(0);
+  await expect(page.getByTestId('results')).toHaveCount(0);
+});

@@ -28,6 +28,13 @@ export interface TransportDeps {
   readonly fetch: typeof fetch;
   readonly now: () => number;
   readonly sleep: (ms: number) => Promise<void>;
+  /**
+   * How hard to retry throttling. Absent means `DEFAULT_RETRY`. Carried on the
+   * deps so a caller that expects to live against a per-minute limit — the
+   * TICKET-7 (#8) spike, whose duels outrun Groq's 8K tokens per minute — can
+   * wait the window out instead of aborting a duel half played.
+   */
+  readonly retry?: RetryPolicy;
 }
 
 export const DEFAULT_DEPS: TransportDeps = {
@@ -86,7 +93,7 @@ export async function postJson(
   headers: Readonly<Record<string, string>>,
   body: unknown,
   deps: TransportDeps = DEFAULT_DEPS,
-  retry: RetryPolicy = DEFAULT_RETRY,
+  retry: RetryPolicy = deps.retry ?? DEFAULT_RETRY,
 ): Promise<PostResult> {
   const secrets = Object.values(headers).flatMap((value) => [value, value.replace(/^Bearer\s+/i, '')]);
   const payload = JSON.stringify(body);

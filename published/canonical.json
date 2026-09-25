@@ -66,6 +66,11 @@
     ],
     "typicalOfRepeats": null
   },
+  "repeats": {
+    "completed": 0,
+    "dropped": 0,
+    "outcomes": []
+  },
   "log": [
     {
       "logVersion": 0,

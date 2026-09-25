@@ -98,6 +98,14 @@ scan every committed artifact for anything shaped like a URL or a key, keep `lib
 providers, and check in a browser that a published run requests nothing beyond its own origin.
 `published/canonical.json` is the golden fixture run (`scripts/publish.mts --canonical`).
 
+When a published run ends (or the viewer presses "Skip to results"), `/run/<id>` shows the **post-run
+comparison**: escape time, actions, puzzles solved, failed attempts, invalid actions, tokens and cost per
+model, the winner by fewest actions, and — as plain text, never a tooltip — whether the run was typical of
+its silent repeats, with the counts, plus the nondeterminism limitation. The script counts the repeats
+named in the run's `matchup.json` into the artifact's `repeats` block; build and load both refuse counts
+that contradict the run's typicality verdict. `lib/comparison/` holds the one definition of "who won" and
+"typical" that the harness and the page share.
+
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate
 actually separates two models. Expect exactly one migration.

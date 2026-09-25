@@ -46,6 +46,14 @@ describe('postJson', () => {
     expect(slept).toEqual([1000, 2000, 3000]);
   });
 
+  it('takes its retry policy from the deps when the caller passes none', async () => {
+    const { deps, slept } = testDeps(Array.from({ length: 6 }, () => ({ status: 429, body: {} })));
+    const patient = { ...deps, retry: { maxRetries: 5, baseDelayMs: 10_000, maxDelayMs: 60_000 } };
+    const error = await postJson('groq', URL_, headers, {}, patient).catch((e: unknown) => e);
+    expect(error).toMatchObject({ attempts: 6 });
+    expect(slept).toEqual([10_000, 20_000, 40_000, 60_000, 60_000]);
+  });
+
   it('honours retry-after as an HTTP date', () => {
     const now = Date.parse('2026-09-22T10:00:00Z');
     expect(retryAfterMs('Tue, 22 Sep 2026 10:00:05 GMT', now)).toBe(5000);

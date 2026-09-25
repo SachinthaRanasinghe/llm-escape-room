@@ -5,6 +5,7 @@ import { ARTIFACT_VERSION } from '@/lib/schema/version';
 import { buildReplay, buildSceneLayout, planBeats, type RendererSnapshot } from '@/lib/replay';
 import { ArtifactError, parseArtifact, type PublishedArtifact } from './schema';
 import { findLeaks } from './scan';
+import { buildRepeatRecord, checkRepeats, type RepeatInput } from './repeats';
 
 /**
  * A finished run → a published artifact. TICKET-9 (#9).
@@ -19,10 +20,12 @@ import { findLeaks } from './scan';
  * `lib/replay/layout.ts`. A spread of the renderer or the run would carry along
  * whatever someone adds to either next month.
  *
- * ── Validated three times ──────────────────────────────────────────────────
+ * ── Validated four times ───────────────────────────────────────────────────
  * `buildReplay` refuses a log that does not belong to the run or has a gap.
- * `parseArtifact` refuses anything off-schema. `findLeaks` refuses anything
- * shaped like a URL or a key. A run that fails any of them is not published.
+ * `parseArtifact` refuses anything off-schema. `checkRepeats` refuses repeat
+ * counts that disagree with `run.typicalOfRepeats` (TICKET-10, #10). `findLeaks`
+ * refuses anything shaped like a URL or a key. A run that fails any of them is
+ * not published.
  *
  * Pure: no filesystem, no clock. `publishedAt` is passed in, like the harness's
  * `now` — `scripts/publish.mts` passes the real time, tests a fixed one.
@@ -39,13 +42,15 @@ export interface BuildArtifactInput {
   readonly run: Run;
   readonly log: EventLog;
   readonly room: RoomSpec;
+  /** The silent repeats — counted into `artifact.repeats`, never published themselves. */
+  readonly repeats: RepeatInput;
   /** What to freeze. `scripts/publish.mts` passes `CURRENT_RENDERER`. */
   readonly renderer: RendererSnapshot;
   /** ISO 8601. */
   readonly publishedAt: string;
 }
 
-export function buildArtifact({ id, run, log, room, renderer, publishedAt }: BuildArtifactInput): PublishedArtifact {
+export function buildArtifact({ id, run, log, room, repeats, renderer, publishedAt }: BuildArtifactInput): PublishedArtifact {
   if (room.roomId !== run.roomId) {
     throw new ArtifactError('room_mismatch', `room ${room.roomId}, run ${run.roomId}`);
   }
@@ -53,12 +58,18 @@ export function buildArtifact({ id, run, log, room, renderer, publishedAt }: Bui
   const layout = buildSceneLayout(room);
   const data = buildReplay({ log, run, layout });
   const beatPlan = planBeats(data, renderer.timing);
+  const record = buildRepeatRecord(run, repeats);
 
   const artifact = parseArtifact({
     artifactVersion: ARTIFACT_VERSION,
     id,
     publishedAt,
     run,
+    repeats: {
+      completed: record.completed,
+      dropped: record.dropped,
+      outcomes: record.outcomes,
+    },
     log,
     manifest: {
       rendererVersion: renderer.rendererVersion,
@@ -70,6 +81,7 @@ export function buildArtifact({ id, run, log, room, renderer, publishedAt }: Bui
       beatPlan,
     },
   });
+  checkRepeats(artifact);
 
   const leaks = findLeaks(JSON.stringify(artifact));
   if (leaks.length > 0) {

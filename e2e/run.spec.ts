@@ -11,6 +11,9 @@ import { loadArtifact } from '@/lib/artifact';
  * And it proves the replay bundle is one-way at runtime: through a full playback,
  * every request the page makes is to its own origin — no provider, no CDN, no
  * endpoint of any kind.
+ *
+ * TICKET-10 (#10) adds the post-run comparison: hidden until the end or a skip,
+ * honesty text on the page and never in a tooltip, kept through a restart.
  */
 
 const artifact = loadArtifact('canonical');
@@ -64,6 +67,8 @@ test('makes no request beyond its own origin, start to finish', async ({ page, b
 
   await freezeClock(page);
   await page.goto('/run/canonical');
+  await page.getByTestId('skip-to-results').click();
+  await expect(page.getByTestId('results')).toBeVisible();
   await advance(page, plan.totalMs + 500);
   await expect(page.getByTestId('replay')).toHaveAttribute('data-state', 'ended');
 
@@ -85,4 +90,62 @@ test('takes its lane colours from the manifest', async ({ page }) => {
 test('an unpublished id is a 404', async ({ page }) => {
   const response = await page.goto('/run/does-not-exist');
   expect(response?.status()).toBe(404);
+});
+
+test('the comparison waits for the end of the run, shows how each model did, and survives a restart', async ({ page }) => {
+  test.setTimeout(150_000);
+  await freezeClock(page);
+  await page.goto('/run/canonical');
+  await advance(page, plan.introMs + 100);
+  await expect(page.getByTestId('skip-to-results')).toBeVisible();
+  await expect(page.getByTestId('results')).toHaveCount(0);
+
+  await advance(page, plan.totalMs);
+  await expect(page.getByTestId('replay')).toHaveAttribute('data-state', 'ended');
+  await expect(page.getByTestId('results')).toBeVisible();
+  await expect(page.getByTestId('skip-to-results')).toHaveCount(0);
+  await expect(page.getByTestId('results-heading')).toHaveText('competitor-a wins — escaped in 13 actions');
+  await expect(page.getByTestId('cell-result-model-a')).toHaveText('Escaped in 13 actions');
+  await expect(page.getByTestId('cell-result-model-b')).toHaveText('Out of actions');
+  await expect(page.getByTestId('cell-actions-model-b')).toHaveText('14 / 14');
+  await expect(page.getByTestId('cell-invalid-model-b')).toHaveText('1');
+  await expect(page.getByTestId('column-model-a').getByTestId('winner')).toBeVisible();
+  await expect(page.getByTestId('column-model-b').getByTestId('winner')).toHaveCount(0);
+
+  // A restart after the end keeps the results — once seen, never taken away. Checked here rather than in a
+  // test of its own: every full playback costs a minute of software WebGL, and they starve a long suite.
+  await page.getByTestId('restart').click();
+  await advance(page, 500);
+  await expect(page.getByTestId('replay')).toHaveAttribute('data-state', 'playing');
+  await expect(page.getByTestId('results')).toBeVisible();
+});
+
+test('"Skip to results" reveals them at once, focused, without stopping the replay', async ({ page }) => {
+  await freezeClock(page);
+  await page.goto('/run/canonical');
+  await advance(page, 2000);
+  await page.getByTestId('skip-to-results').click();
+  await advance(page, 100);
+  await expect(page.getByTestId('results')).toBeVisible();
+  await expect(page.getByTestId('results-heading')).toBeFocused();
+  await expect(page.getByTestId('replay')).toHaveAttribute('data-state', 'playing');
+});
+
+test('variance and nondeterminism are stated on the page, never in a tooltip', async ({ page }) => {
+  await page.goto('/run/canonical');
+  await page.getByTestId('skip-to-results').click();
+  const results = page.getByTestId('results');
+
+  const variance = page.getByTestId('variance');
+  await expect(variance).toHaveAttribute('data-kind', 'unrepeated');
+  await expect(variance).toBeVisible();
+  await expect(variance).toContainText('Not checked for luck');
+  await expect(variance).toContainText('Treat it as one sample.');
+
+  const limitation = page.getByTestId('limitation');
+  await expect(limitation).toBeVisible();
+  await expect(limitation).toContainText('Models are nondeterministic');
+
+  await expect(results.locator('[title]')).toHaveCount(0);
+  await expect(results.locator('details, [role=tooltip]')).toHaveCount(0);
 });

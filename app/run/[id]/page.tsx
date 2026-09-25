@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ReplayPlayer } from '@/components/scene/ReplayPlayer';
-import { ArtifactError, listArtifactIds, loadArtifact, replayFromArtifact, type PublishedArtifact } from '@/lib/artifact';
+import {
+  ArtifactError,
+  comparisonFromArtifact,
+  listArtifactIds,
+  loadArtifact,
+  replayFromArtifact,
+  type PublishedArtifact,
+} from '@/lib/artifact';
 
 /**
  * A published run — the URL you send someone. TICKET-9 (#9).
@@ -21,6 +28,10 @@ import { ArtifactError, listArtifactIds, loadArtifact, replayFromArtifact, type 
  * under a viewer's feet" bug the manifest exists to prevent.
  *
  * `/replay` is the live preview of the current renderer; this is the frozen one.
+ *
+ * The post-run comparison (TICKET-10, #10) is computed here too, at build time,
+ * from the artifact's run, repeat counts and log, and handed to the player as
+ * plain strings — the player reveals it at the end, and decides nothing in it.
  */
 
 export const dynamicParams = false;
@@ -51,6 +62,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RunPage({ params }: Props) {
   const { id } = await params;
-  const { data, renderer } = replayFromArtifact(load(id));
-  return <ReplayPlayer data={data} renderer={renderer} />;
+  const artifact = load(id);
+  const { data, renderer } = replayFromArtifact(artifact);
+  const comparison = comparisonFromArtifact(artifact);
+  return <ReplayPlayer data={data} renderer={renderer} comparison={comparison} />;
 }

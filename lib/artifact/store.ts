@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkRepeats } from './repeats';
 import { ARTIFACT_ID, ArtifactError, parseArtifact, type PublishedArtifact } from './schema';
 
 /**
@@ -11,6 +12,10 @@ import { ARTIFACT_ID, ArtifactError, parseArtifact, type PublishedArtifact } fro
  *
  * The id is checked against `ARTIFACT_ID` before it is joined to a path, so
  * `../` never reaches the filesystem.
+ *
+ * A loaded artifact's repeat counts are re-checked against its verdict
+ * (`checkRepeats`, TICKET-10 #10), so a hand-edited file fails the build rather
+ * than printing a count the data does not support.
  *
  * `process.cwd()`, not an environment read: `next build`, vitest and `tsx`
  * scripts all run from the repo root.
@@ -38,5 +43,6 @@ export function loadArtifact(id: string, dir: string = PUBLISHED_DIR): Published
   if (!existsSync(path)) throw new ArtifactError('not_found', id);
   const artifact = parseArtifact(JSON.parse(readFileSync(path, 'utf8')));
   if (artifact.id !== id) throw new ArtifactError('not_found', `${path} holds artifact ${artifact.id}, not ${id}`);
+  checkRepeats(artifact);
   return artifact;
 }

@@ -7,7 +7,14 @@
  *
  * Reads `<run>/run.json` and `<run>/events.json` (what `scripts/run.mts` writes)
  * plus the room they were played in — `run.json` records the room's id, not its
- * path, so the room is named explicitly and checked against it. Writes
+ * path, so the room is named explicitly and checked against it.
+ *
+ * When `<run>/matchup.json` is there, the silent repeats it names are read from
+ * `<run>/repeats/<id>.run.json` and COUNTED into the artifact's `repeats` block
+ * (TICKET-10, #10) — outcome counts and a dropped count, never a repeat log and
+ * never why a repeat dropped (that is provider error text). Without it (older
+ * run directories) the run is published as unrepeated, which `checkRepeats`
+ * refuses if `run.json` claims a typicality verdict. Writes
  * `<out>/<id>.json`: log + run record + a render manifest that freezes the
  * CURRENT renderer. `/run/<id>` plays it after the next build.
  *
@@ -33,7 +40,9 @@ import {
   buildArtifact,
   CANONICAL_PUBLISHED_AT,
   type BuildArtifactInput,
+  type RepeatInput,
 } from '../lib/artifact';
+import type { Run } from '../lib/schema/run';
 import { CURRENT_RENDERER, ReplayError } from '../lib/replay';
 import { parseEventLog } from '../lib/schema/event';
 import { parseRoomSpec } from '../lib/schema/room';
@@ -81,6 +90,33 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
+/** The repeats `matchup.json` names, or none when the directory has no matchup. Reads `dropped` for its length only. */
+function repeatsOf(runDir: string, run: Run): RepeatInput {
+  const matchupPath = join(runDir, 'matchup.json');
+  if (!existsSync(matchupPath)) return { runs: [], dropped: 0 };
+
+  const matchup = readJson(matchupPath) as Record<string, unknown> | null;
+  const repeatRunIds = matchup?.repeatRunIds;
+  const dropped = matchup?.dropped;
+  if (
+    typeof matchup !== 'object' ||
+    matchup === null ||
+    matchup.heroRunId !== run.runId ||
+    !Array.isArray(repeatRunIds) ||
+    !repeatRunIds.every((id) => typeof id === 'string') ||
+    !Array.isArray(dropped)
+  ) {
+    fail(`${matchupPath} is malformed: expected heroRunId ${run.runId}, repeatRunIds: string[], dropped: []`, 1);
+  }
+
+  const runs = (repeatRunIds as string[]).map((id) => {
+    const path = join(runDir, 'repeats', `${id}.run.json`);
+    if (!existsSync(path)) fail(`${matchupPath} names repeat ${id}, but ${path} is missing`, 1);
+    return parseRun(readJson(path));
+  });
+  return { runs, dropped: dropped.length };
+}
+
 function inputFromRun(runDir: string, roomPath: string): BuildArtifactInput {
   if (!existsSync(join(runDir, 'run.json'))) {
     const partial = existsSync(join(runDir, 'events.partial.json'));
@@ -95,7 +131,8 @@ function inputFromRun(runDir: string, roomPath: string): BuildArtifactInput {
   const log = parseEventLog(readJson(join(runDir, 'events.json')));
   const room = parseRoomSpec(readJson(roomPath));
   const id = values.id ?? slug(run.runId);
-  return { id, run, log, room, renderer: CURRENT_RENDERER, publishedAt: new Date().toISOString() };
+  const repeats = repeatsOf(runDir, run);
+  return { id, run, log, room, repeats, renderer: CURRENT_RENDERER, publishedAt: new Date().toISOString() };
 }
 
 let input: BuildArtifactInput;
@@ -107,6 +144,7 @@ try {
       run: loadCanonicalRun(),
       log: loadCanonicalLog(),
       room: loadCanonicalRoom(),
+      repeats: { runs: [], dropped: 0 },
       renderer: CURRENT_RENDERER,
       publishedAt: CANONICAL_PUBLISHED_AT,
     };
@@ -132,7 +170,8 @@ try {
   writeFileSync(path, `${JSON.stringify(artifact, null, 2)}\n`);
   console.log(
     `published ${artifact.id}  renderer ${artifact.manifest.rendererVersion}  ` +
-      `${artifact.log.length} events  ${artifact.manifest.beatPlan.totalMs} ms  → ${relative(process.cwd(), path)}`,
+      `${artifact.log.length} events  ${artifact.manifest.beatPlan.totalMs} ms  ` +
+      `repeats ${artifact.repeats.completed} (+${artifact.repeats.dropped} dropped)  → ${relative(process.cwd(), path)}`,
   );
 } catch (error) {
   if (error instanceof ArtifactError || error instanceof ReplayError || error instanceof SchemaError) {

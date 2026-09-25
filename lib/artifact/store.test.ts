@@ -15,6 +15,10 @@ writeFileSync(join(dir, 'run-one.json'), JSON.stringify(artifact));
 writeFileSync(join(dir, 'wrong-id.json'), JSON.stringify(artifact));
 writeFileSync(join(dir, 'README.md'), '# not an artifact');
 writeFileSync(join(dir, 'Upper.json'), '{}');
+writeFileSync(
+  join(dir, 'edited.json'),
+  JSON.stringify({ ...artifact, id: 'edited', run: { ...artifact.run, typicalOfRepeats: true } }),
+);
 
 function reasonOf(fn: () => unknown): string | undefined {
   try {
@@ -27,7 +31,7 @@ function reasonOf(fn: () => unknown): string | undefined {
 
 describe('the published store', () => {
   it('lists valid ids only, sorted', () => {
-    expect(listArtifactIds(dir)).toEqual(['run-one', 'wrong-id']);
+    expect(listArtifactIds(dir)).toEqual(['edited', 'run-one', 'wrong-id']);
   });
 
   it('lists nothing from a directory that does not exist', () => {
@@ -47,5 +51,9 @@ describe('the published store', () => {
   it('says not_found for a missing id, and for a file holding a different id', () => {
     expect(reasonOf(() => loadArtifact('nope', dir))).toBe('not_found');
     expect(reasonOf(() => loadArtifact('wrong-id', dir))).toBe('not_found');
+  });
+
+  it('refuses a hand-edited file whose repeat counts contradict its verdict', () => {
+    expect(reasonOf(() => loadArtifact('edited', dir))).toBe('repeats_mismatch');
   });
 });

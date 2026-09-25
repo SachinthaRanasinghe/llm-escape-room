@@ -21,7 +21,7 @@ the puzzle substrate undecided and makes two questions gate everything downstrea
 |---|---|
 | Substrates | `symbolic`: codes, then a word. `spatial`: every link is a key, with decoy keys. `mixed`: codes and keys interleaved, then a word. All three are in `lib/generator/strategies/`. |
 | Instances | 20 per substrate, seeds `spike-<strategy>-<i>`, run interleaved across substrates |
-| Generation | `gemini/gemini-flash-latest`, cap of 5 attempts, band `standard` (3–4 links) |
+| Generation | `gemini/gemini-flash-lite-latest`, cap of 5 attempts, band `standard` (3–4 links). See the note below. |
 | Competitors | `groq/openai/gpt-oss-120b` (model-a) vs `groq/openai/gpt-oss-20b` (model-b), provider defaults for sampling |
 | Budget | 14 actions, 60,000 tokens, 300 s per competitor (`DEFAULT_BUDGET`) |
 | Per instance | one duel, no silent repeats |
@@ -34,6 +34,17 @@ the puzzle substrate undecided and makes two questions gate everything downstrea
 now lists both Llamas as Enterprise-only. The gpt-oss pair keeps one provider and one serving stack. It is still a
 large-versus-small pairing, so **divergence may partly measure model size rather than substrate**. The comparison
 *between* substrates is still fair, because every substrate faces the same pair.
+
+**Generation model.** The plan named `gemini-flash-latest`. It returned "503 high demand" throughout 2026-09-23
+and 2026-09-24. The alternatives checked:
+
+- A Groq model would spend the competitors' daily tokens.
+- `qwen/qwen3.8-27b` is capped at 1,000 output tokens per minute, and a room needs up to ~5,600.
+- `gemini-flash-lite-latest` answered, slowly but on its own quota.
+
+The generation model builds the room *before* either competitor sees it, and both play the same certified room,
+so this choice cannot favour either competitor. It can change which rooms get built, and how many attempts that
+takes.
 
 **Run it:**
 

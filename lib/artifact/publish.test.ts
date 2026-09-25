@@ -4,14 +4,22 @@ import { buildReplay, buildSceneLayout, CURRENT_RENDERER, planBeats, ReplayError
 import { event, runFixture } from '@/lib/replay/testing';
 import { buildArtifact } from './publish';
 import { ArtifactError, ArtifactSchemaError } from './schema';
-import { canonicalInput, canonicalSecrets } from './testing';
+import { canonicalInput, canonicalSecrets, repeatOf, withRepeats } from './testing';
 
 describe('buildArtifact on the canonical run', () => {
   const input = canonicalInput();
   const artifact = buildArtifact(input);
 
   it('has exactly the envelope fields — no room, nothing else', () => {
-    expect(Object.keys(artifact).sort()).toEqual(['artifactVersion', 'id', 'log', 'manifest', 'publishedAt', 'run']);
+    expect(Object.keys(artifact).sort()).toEqual([
+      'artifactVersion',
+      'id',
+      'log',
+      'manifest',
+      'publishedAt',
+      'repeats',
+      'run',
+    ]);
     expect(Object.keys(artifact.manifest).sort()).toEqual([
       'assets',
       'beatPlan',
@@ -91,5 +99,20 @@ describe('buildArtifact refuses', () => {
 
   it('an id that is not a slug', () => {
     expect(() => buildArtifact(canonicalInput({ id: '../escape' }))).toThrow(ArtifactSchemaError);
+  });
+});
+
+describe('the repeats block', () => {
+  it('publishes counts only — no repeat run, and no reason a repeat was dropped', () => {
+    const hero = canonicalInput().run;
+    const artifact = buildArtifact(canonicalInput(withRepeats([repeatOf(hero, 1, 10, null)], 2)));
+    expect(artifact.repeats).toEqual({
+      completed: 1,
+      dropped: 2,
+      outcomes: [{ outcome: { kind: 'winner', competitorId: 'model-a' }, count: 1 }],
+    });
+    const text = JSON.stringify(artifact);
+    expect(text).not.toContain(`${hero.runId}-r1`);
+    expect(text).not.toContain('"reason"');
   });
 });

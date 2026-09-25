@@ -1,0 +1,142 @@
+/*
+ * Post-run comparison — TICKET-10 (#10). Chrome, not footage: restrained, like
+ * replay.module.css, whose tokens (--surface, --text, --muted, --rule, --lane-a,
+ * --lane-b, --failure, --fade) cascade here from the player's .root.
+ *
+ * The variance statement and the limitation are HONESTY TEXT: body size, full
+ * measure, never truncated — no text-overflow, no line clamp, nothing hidden.
+ */
+
+.results {
+  animation: fadeIn var(--fade, 180ms) ease-out;
+  border-top: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 32px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.headline {
+  margin: 0;
+  font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.625rem);
+  font-weight: 600;
+  outline: none;
+}
+
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 44rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.875rem;
+  padding-bottom: 8px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+.metric {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.model {
+  font-weight: 600;
+  color: var(--lane);
+  border-top: 3px solid var(--lane);
+}
+
+.laneA {
+  --lane: var(--lane-a);
+}
+
+.laneB {
+  --lane: var(--lane-b);
+}
+
+.winner {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.value {
+  font-size: 0.9375rem;
+}
+
+.detail {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.note {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.variance {
+  max-width: 70ch;
+  border-left: 3px solid var(--muted);
+  padding-left: 16px;
+}
+
+.warning {
+  border-left-color: var(--failure);
+}
+
+.varianceTitle {
+  margin: 0 0 4px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.varianceBody,
+.limitation {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.limitation {
+  max-width: 70ch;
+}
+
+@media (max-width: 720px) {
+  .results {
+    padding: 24px 16px 40px;
+  }
+
+  .table th,
+  .table td {
+    padding-right: 8px;
+  }
+
+  .metric {
+    white-space: normal;
+  }
+}

@@ -127,6 +127,34 @@ export const RenderManifestSchema = z.strictObject({
 });
 export type RenderManifest = z.infer<typeof RenderManifestSchema>;
 
+/**
+ * A run's outcome — `lib/comparison/outcome.ts`'s `Outcome`, as data.
+ * `schema.test.ts` holds the two in step at the type level.
+ */
+export const OutcomeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('winner'), competitorId: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('tie') }),
+  z.strictObject({ kind: z.literal('none') }),
+]);
+
+/**
+ * What the silent repeats of this room came to — TICKET-10 (#10).
+ *
+ * Counts, not runs: the page states "won in 2 of 3", and needs nothing more.
+ * No repeat log is published, and no reason a repeat was dropped — that reason
+ * is provider error text. `lib/artifact/repeats.ts` derives the block from the
+ * repeat runs and refuses one that disagrees with `run.typicalOfRepeats`.
+ */
+export const RepeatsSchema = z.strictObject({
+  /** Silent repeats that finished — what `run.typicalOfRepeats` was judged on. */
+  completed: z.number().int().nonnegative(),
+  /** Repeats that stopped on a provider failure. Counted, never explained. */
+  dropped: z.number().int().nonnegative(),
+  /** `tallyOutcomes` order: count descending, then key. Sums to `completed`. */
+  outcomes: z.array(z.strictObject({ outcome: OutcomeSchema, count: z.number().int().positive() })),
+});
+export type RepeatRecord = z.infer<typeof RepeatsSchema>;
+
 export const PublishedArtifactSchema = z.strictObject({
   artifactVersion: ArtifactVersionSchema,
   id: z.string().regex(ARTIFACT_ID),
@@ -134,6 +162,8 @@ export const PublishedArtifactSchema = z.strictObject({
   publishedAt: z.iso.datetime(),
   /** Competitors, budget, per-competitor summaries and `typicalOfRepeats` — what TICKET-10 (#10) compares. */
   run: RunSchema,
+  /** The counts behind `run.typicalOfRepeats`. Required: no repeats is `{ completed: 0, dropped: 0, outcomes: [] }`. */
+  repeats: RepeatsSchema,
   log: EventLogSchema,
   manifest: RenderManifestSchema,
 });
@@ -159,6 +189,7 @@ export const ARTIFACT_ERROR_REASONS = [
   'plan_drift',
   'unsupported_renderer',
   'not_found',
+  'repeats_mismatch',
 ] as const;
 export type ArtifactErrorReason = (typeof ARTIFACT_ERROR_REASONS)[number];
 

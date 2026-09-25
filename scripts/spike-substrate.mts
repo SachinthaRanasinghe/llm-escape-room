@@ -4,7 +4,7 @@
  * Run with (and re-run with the SAME command until it reports nothing left):
  *   node --env-file-if-exists=.env --import tsx scripts/spike-substrate.mts
  *     [--strategies symbolic,spatial,mixed] [--instances 20]
- *     [--gen gemini:gemini-flash-latest] [--a groq:openai/gpt-oss-120b] [--b groq:openai/gpt-oss-20b]
+ *     [--gen gemini:gemini-flash-lite-latest] [--a groq:openai/gpt-oss-120b] [--b groq:openai/gpt-oss-20b]
  *     [--max-attempts 5] [--max-actions 14] [--max-tokens 60000] [--max-ms 300000]
  *     [--pace-ms 0] [--out runs/spike]
  *
@@ -22,6 +22,14 @@
  * `partial.json`, and exits 1; the next run retries that same instance, reusing
  * its certified room rather than generating a new one.
  *
+ * ── It waits out the per-minute limit ──────────────────────────────────────
+ * One competitor's duel sends ~2K prompt tokens a turn and outruns Groq's 8K
+ * tokens per minute on its own; the default retry policy (3 retries, 20 s cap)
+ * gives up inside the window and aborts a half-played duel. The runner uses
+ * `SPIKE_RETRY` instead: up to 8 retries, waits up to 65 s. That costs the
+ * models nothing — think-time and the wall-clock budget both count only the
+ * attempt that succeeded (`lib/providers/transport.ts`, `lib/harness/competitor.ts`).
+ *
  * Instances are interleaved — index 1 of every strategy, then index 2 … — so a
  * day cut short by quota leaves the strategies with equal sample sizes rather
  * than 20 / 20 / 3.
@@ -37,6 +45,7 @@ import { parseArgs } from 'node:util';
 import { GenerationAbortedError, generateRoom, resolveStrategy, STRATEGIES, type GeneratorStrategy } from '../lib/generator';
 import { DEFAULT_BUDGET, DuelAbortedError, runDuel } from '../lib/harness';
 import {
+  DEFAULT_DEPS,
   ProviderError,
   createAdapter,
   createGenerationClient,
@@ -66,7 +75,7 @@ try {
     options: {
       strategies: { type: 'string', default: 'symbolic,spatial,mixed' },
       instances: { type: 'string', default: '20' },
-      gen: { type: 'string', default: 'gemini:gemini-flash-latest' },
+      gen: { type: 'string', default: 'gemini:gemini-flash-lite-latest' },
       a: { type: 'string', default: 'groq:openai/gpt-oss-120b' },
       b: { type: 'string', default: 'groq:openai/gpt-oss-20b' },
       'max-attempts': { type: 'string', default: '5' },
@@ -166,11 +175,15 @@ if (remaining.length === 0) {
   process.exit(0);
 }
 
+/** Patient enough to outlast a one-minute token window; see the header. */
+const SPIKE_RETRY = { maxRetries: 8, baseDelayMs: 5_000, maxDelayMs: 65_000 } as const;
+const deps = { ...DEFAULT_DEPS, retry: SPIKE_RETRY };
+
 let client: GenerationClient;
 let adapters: Record<string, ProviderAdapter>;
 try {
-  client = createGenerationClient(generator, readProviderKey(generator.provider));
-  adapters = Object.fromEntries(competitors.map((c) => [c.id, createAdapter(c, readProviderKey(c.provider))]));
+  client = createGenerationClient(generator, readProviderKey(generator.provider), deps);
+  adapters = Object.fromEntries(competitors.map((c) => [c.id, createAdapter(c, readProviderKey(c.provider), deps)]));
 } catch (error) {
   if (error instanceof ProviderError) fail(error.message, 1);
   throw error;

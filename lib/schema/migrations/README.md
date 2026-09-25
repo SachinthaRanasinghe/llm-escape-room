@@ -37,5 +37,6 @@ So do the published artifacts in `published/` (TICKET-9, #9). Each one embeds a
 v0 run record and a v0 event log, and `/run/[id]` parses them at build time: a
 bump that leaves them on v0 breaks every URL anyone has shared, at the next
 build. Migrate their `run` and `log` in place; their render manifest does not
-change. `lib/artifact/canonical.test.ts` fails until `published/canonical.json`
-matches the migrated fixtures.
+change, and neither does their `repeats` block (TICKET-10, #10) — it holds
+outcome counts, not runs or logs. `lib/artifact/canonical.test.ts` fails until
+`published/canonical.json` matches the migrated fixtures.

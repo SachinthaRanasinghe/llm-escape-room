@@ -18,6 +18,9 @@ describe('findLeaks', () => {
     expect(findLeaks('generativelanguage.googleapis.com').map((l) => l.kind)).toEqual(['endpoint']);
     expect(findLeaks(`{"k":"${groq}"}`).map((l) => l.kind)).toEqual(['key']);
     expect(findLeaks(`{"k":"${gemini}"}`).map((l) => l.kind)).toEqual(['key']);
+    expect(findLeaks(`{"k":"AQ.${'Ab8_-'.repeat(8)}"}`).map((l) => l.kind)).toEqual(['key']);
+    expect(findLeaks(`{"k":"sk-or-v1-${'0f'.repeat(32)}"}`).map((l) => l.kind)).toEqual(['key']);
+    expect(findLeaks('POST to openrouter.ai').map((l) => l.kind)).toEqual(['endpoint']);
     expect(findLeaks('https://api.groq.com/openai').map((l) => l.kind).sort()).toEqual(['endpoint', 'url']);
   });
 

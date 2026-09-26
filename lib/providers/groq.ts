@@ -34,6 +34,8 @@ import {
  */
 
 export const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+/** The live model list — read by `catalogue.ts`, which names no host itself. */
+export const GROQ_MODELS_ENDPOINT = 'https://api.groq.com/openai/v1/models';
 
 interface GroqParam {
   type: 'string';
@@ -201,8 +203,21 @@ function modelGenerationFailed(error: GroqResponse['error']): boolean {
   return error !== undefined && Object.hasOwn(error, 'failed_generation');
 }
 
-export function decodeGroqResponse(status: number, json: unknown, context: DecodeContext): DecodedTurn {
-  const { callIndex, secrets = [], attempts = 1 } = context;
+/**
+ * The OpenAI chat-completions dialect is shared: `openrouter.ts` compiles and
+ * decodes through the functions in this file, so one tool spec and one decoder
+ * serve both, and `equivalence.test.ts` has nothing new to drift. `provider`
+ * only names who to blame in a `ProviderError`.
+ */
+export type OpenAiDialectProvider = 'groq' | 'openrouter';
+
+export interface OpenAiDecodeContext extends DecodeContext {
+  /** Default `groq`. */
+  readonly provider?: OpenAiDialectProvider;
+}
+
+export function decodeGroqResponse(status: number, json: unknown, context: OpenAiDecodeContext): DecodedTurn {
+  const { callIndex, secrets = [], attempts = 1, provider = 'groq' } = context;
   const body = (json ?? {}) as GroqResponse;
 
   if (status === 400 && (body.error?.code === 'tool_use_failed' || modelGenerationFailed(body.error))) {
@@ -211,7 +226,7 @@ export function decodeGroqResponse(status: number, json: unknown, context: Decod
     return rejectedTurn({ prompt: 0, completion: 0 }, null);
   }
   if (status < 200 || status >= 300) {
-    throw new ProviderError('groq', status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
+    throw new ProviderError(provider, status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
   }
 
   const message = body.choices?.[0]?.message ?? {};
@@ -262,7 +277,7 @@ export type DecodedJson = Omit<JsonCompletion, 'latencyMs' | 'attempts'>;
 export function decodeGroqJsonResponse(
   status: number,
   json: unknown,
-  { secrets = [], attempts = 1 }: Pick<DecodeContext, 'secrets' | 'attempts'>,
+  { secrets = [], attempts = 1, provider = 'groq' }: Pick<OpenAiDecodeContext, 'secrets' | 'attempts' | 'provider'>,
 ): DecodedJson {
   const body = (json ?? {}) as GroqResponse;
 
@@ -273,7 +288,7 @@ export function decodeGroqJsonResponse(
     return { text: null, anomaly: 'invalid_json', tokens: { prompt: 0, completion: 0 } };
   }
   if (status < 200 || status >= 300) {
-    throw new ProviderError('groq', status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
+    throw new ProviderError(provider, status, attempts, errorExcerpt(json, secrets) || `HTTP ${status}`);
   }
 
   const content = body.choices?.[0]?.message?.content;

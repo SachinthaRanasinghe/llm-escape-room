@@ -92,40 +92,40 @@ export const CURRENT_RENDERER: RendererSnapshot = {
   rendererVersion: RENDERER_VERSION,
   timing: DEFAULT_TIMING,
   camera: {
-    position: [0, 5.6, 6.2],
-    lookAt: [0, 0.3, -1.4],
-    fov: 42,
-    swayAmplitude: 0.15,
-    swayPeriodMs: DEFAULT_TIMING.beatMs * 4,
+    position: [0, 4.5, 5.6],
+    lookAt: [0, 0.8, -1.3],
+    fov: 44,
+    swayAmplitude: 0.3,
+    swayPeriodMs: DEFAULT_TIMING.beatMs * 5,
   },
   assets: {
-    laneColours: ['#e0a458', '#5ab1bb'],
+    laneColours: ['#f2a65a', '#4fd1c5'],
     scene: {
-      background: '#15171c',
-      floor: '#2a2d35',
-      wall: '#343844',
-      success: '#6fcf86',
-      failure: '#e0655b',
-      locked: '#c9504a',
-      unlocked: '#58c472',
+      background: '#06080c',
+      floor: '#5e4231',
+      wall: '#2a3a44',
+      success: '#5ee49a',
+      failure: '#ff6b6b',
+      locked: '#ff4d4d',
+      unlocked: '#4dff88',
     },
     kindColours: {
-      container: '#8a6a4a',
-      fixture: '#6b7686',
-      portable: '#d8c9a3',
-      lock: '#7d8590',
-      door: '#6e4f36',
+      container: '#7a5234',
+      fixture: '#3e5570',
+      portable: '#a8453a',
+      lock: '#5d6673',
+      door: '#5a3a24',
     },
   },
   geometry: {
     roomHalf: ROOM_HALF,
-    wallHeight: 1.6,
+    wallHeight: 2.6,
     standOff: 0.9,
   },
 };
 
 /** The renderer majors this build can play. Always includes the current one. */
-export const SUPPORTED_RENDERER_MAJORS: readonly number[] = [0];
+export const SUPPORTED_RENDERER_MAJORS: readonly number[] = [2];
 
 const VERSION = /^replay-v(\d+)\.(\d+)$/;
 

@@ -83,7 +83,7 @@ function validate({ competitors, adapters }: DuelOptions): void {
 
 export async function runDuel(options: DuelOptions): Promise<DuelResult> {
   validate(options);
-  const { runId, spec, competitors, adapters, deps } = options;
+  const { runId, spec, competitors, adapters, deps, onEvent } = options;
   const budget = options.budget ?? DEFAULT_BUDGET;
   const order = competitors.map((c) => c.id);
 
@@ -100,6 +100,7 @@ export async function runDuel(options: DuelOptions): Promise<DuelResult> {
         adapter: adapters[competitor.id]!,
         deps,
         shouldStop: () => stop,
+        onEvent,
       }).catch((error: unknown) => {
         stop = true;
         throw error;
@@ -135,7 +136,7 @@ export async function runDuel(options: DuelOptions): Promise<DuelResult> {
   const summaries = competitors.map((competitor, index) => {
     const summary = results[index]!.summary;
     if (summary === null) throw new Error(`runDuel: ${competitor.id} stopped without a provider failure`);
-    const cost = costOf(competitor, summary.tokens);
+    const cost = costOf(competitor, summary.tokens, options.prices);
     if (!cost.priced) unpriced.push(competitor.id);
     return { ...summary, costUsd: cost.usd };
   });

@@ -1,0 +1,73 @@
+/*
+ * The site's one global stylesheet: design tokens, the page background and a
+ * reset. Everything else stays module-scoped next to its component.
+ *
+ * System font stack on purpose — no font download, so the static build stays
+ * offline-safe (TICKET-8, #5).
+ */
+
+:root {
+  color-scheme: dark;
+
+  --ink-0: #07080b;
+  --ink-1: #0c0e13;
+  --ink-2: #12151c;
+  --ink-3: #1a1e27;
+  --glass: rgba(20, 23, 31, 0.72);
+  --glass-strong: rgba(24, 28, 38, 0.9);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
+
+  --text: #eef0f4;
+  --text-2: #b4bac6;
+  --muted: #7d8494;
+
+  --accent: #f2a65a;
+  --accent-2: #4fd1c5;
+  --success: #5ee49a;
+  --failure: #ff6b6b;
+  --warning: #ffc861;
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'SF Pro Text', 'Segoe UI', Inter, Roboto, sans-serif;
+  --font-display: ui-sans-serif, system-ui, -apple-system, 'SF Pro Display', 'Segoe UI', Inter, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--ink-0);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(242, 166, 90, 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}

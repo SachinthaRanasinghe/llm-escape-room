@@ -9,8 +9,13 @@ import { RUN_VERSION, RunVersionSchema, SchemaError } from './version';
  * a render manifest as the shareable artifact.
  */
 
-/** Free-tier providers only. `architecture.md` holds the serving stack constant for the first matchup. */
-export const PROVIDERS = ['groq', 'gemini'] as const;
+/**
+ * Free-tier providers. `architecture.md` holds the serving stack constant for
+ * the first matchup; the local race page (`/race`) lets any two free models meet,
+ * and OpenRouter is how most open-weight models are reachable for free — and how
+ * Claude, which has no free tier, is reachable at all (paid; `PAID_MODELS`).
+ */
+export const PROVIDERS = ['groq', 'gemini', 'openrouter'] as const;
 export const ProviderSchema = z.enum(PROVIDERS);
 export type Provider = z.infer<typeof ProviderSchema>;
 

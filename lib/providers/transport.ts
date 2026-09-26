@@ -87,6 +87,37 @@ export function retryAfterMs(header: string | null, nowMs: number): number | nul
   return Math.max(0, at - nowMs);
 }
 
+/**
+ * One GET, one attempt, for the model catalogue. Not timed and not retried: a
+ * listing is not a turn, and a failed one only greys out a provider in the picker.
+ * Redacted like `postJson`, so a key echoed in an error never leaves.
+ */
+export async function getJson(
+  provider: Provider,
+  url: string,
+  headers: Readonly<Record<string, string>>,
+  deps: Pick<TransportDeps, 'fetch'> = DEFAULT_DEPS,
+): Promise<{ readonly status: number; readonly json: unknown }> {
+  const secrets = Object.values(headers).flatMap((value) => [value, value.replace(/^Bearer\s+/i, '')]);
+  try {
+    const response = await deps.fetch(url, { method: 'GET', headers: { ...headers } });
+    const text = await response.text();
+    let json: unknown = null;
+    try {
+      json = text.length > 0 ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      throw new ProviderError(provider, response.status, 1, errorExcerpt(json, secrets) || `HTTP ${response.status}`);
+    }
+    return { status: response.status, json };
+  } catch (error) {
+    if (error instanceof ProviderError) throw error;
+    throw new ProviderError(provider, null, 1, redact(error instanceof Error ? error.message : String(error), secrets).slice(0, 200));
+  }
+}
+
 export async function postJson(
   provider: Provider,
   url: string,

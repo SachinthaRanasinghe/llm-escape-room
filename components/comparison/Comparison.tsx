@@ -48,7 +48,7 @@ const METRICS: readonly Metric[] = [
 
 const LANE_CLASSES = [styles.laneA, styles.laneB];
 
-const WARNING_KINDS = new Set(['atypical', 'all_dropped']);
+const WARNING_KINDS = new Set(['atypical', 'all_dropped', 'stopped']);
 
 interface Props {
   readonly data: ComparisonData;
@@ -58,50 +58,52 @@ interface Props {
 export function Comparison({ data, headingRef }: Props) {
   return (
     <section className={styles.results} data-testid="results" aria-labelledby="results-heading">
+      <p className={styles.eyebrow}>Results</p>
       <h2 id="results-heading" ref={headingRef} tabIndex={-1} className={styles.headline} data-testid="results-heading">
         {data.headline}
       </h2>
 
-      <table className={styles.table}>
-        <caption className={styles.caption}>How each model did</caption>
-        <thead>
-          <tr>
-            <th scope="col" className={styles.metric}>
-              Metric
-            </th>
-            {data.rows.map((row, i) => (
-              <th
-                key={row.competitorId}
-                scope="col"
-                className={`${styles.model} ${LANE_CLASSES[i % 2]}`}
-                data-testid={`column-${row.competitorId}`}
-              >
-                {row.label}
-                {row.isWinner && (
-                  <span className={styles.winner} data-testid="winner">
-                    {' '}
-                    · winner
-                  </span>
-                )}
+      <div className={styles.card}>
+        <table className={styles.table}>
+          <caption className={styles.caption}>How each model did</caption>
+          <thead>
+            <tr>
+              <th scope="col" className={styles.metric}>
+                Metric
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {METRICS.map((metric) => (
-            <tr key={metric.key}>
-              <th scope="row" className={styles.metric}>
-                {metric.label}
-              </th>
-              {data.rows.map((row) => (
-                <td key={row.competitorId} className={styles.value} data-testid={`cell-${metric.key}-${row.competitorId}`}>
-                  {metric.cell(row)}
-                </td>
+              {data.rows.map((row, i) => (
+                <th
+                  key={row.competitorId}
+                  scope="col"
+                  className={`${styles.model} ${LANE_CLASSES[i % 2]}`}
+                  data-testid={`column-${row.competitorId}`}
+                >
+                  <span className={styles.modelName}>{row.label}</span>
+                  {row.isWinner && (
+                    <span className={styles.winner} data-testid="winner">
+                      <TrophyIcon /> Winner
+                    </span>
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {METRICS.map((metric) => (
+              <tr key={metric.key}>
+                <th scope="row" className={styles.metric}>
+                  {metric.label}
+                </th>
+                {data.rows.map((row) => (
+                  <td key={row.competitorId} className={styles.value} data-testid={`cell-${metric.key}-${row.competitorId}`}>
+                    {metric.cell(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <p className={styles.note}>{data.escapeTimeNote}</p>
 
@@ -118,5 +120,16 @@ export function Comparison({ data, headingRef }: Props) {
         {data.limitation}
       </p>
     </section>
+  );
+}
+
+function TrophyIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M4 1.5h8v1.8h2.5v1.4A3.3 3.3 0 0 1 11.6 8 4 4 0 0 1 8.8 10v1.8h2.4v2.7H4.8v-2.7h2.4V10A4 4 0 0 1 4.4 8 3.3 3.3 0 0 1 1.5 4.7V3.3H4V1.5Zm0 3.2H3a1.9 1.9 0 0 0 1.1 1.6 7 7 0 0 1-.1-1.6Zm8 0c0 .6 0 1.1-.1 1.6A1.9 1.9 0 0 0 13 4.7h-1Z"
+        fill="currentColor"
+      />
+    </svg>
   );
 }

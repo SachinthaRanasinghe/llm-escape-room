@@ -18,7 +18,8 @@ vocabulary, the solver certifies a room before it is ever run, the provider adap
 models provably the same task, the generator writes fresh rooms that the solver has certified, and
 the harness races two models through one of them and writes the event log. The replay player plays
 the golden fixture log at `/replay`, and a finished run can be published as a frozen artifact that
-plays at `/run/<id>`, ends in a post-run comparison, and reports anonymous watch-through telemetry.
+plays at `/run/<id>`, ends in a post-run comparison, and reports anonymous watch-through telemetry. Locally,
+`/race` races any two free models picked in the browser.
 
 - [`llm-escape-room.prd.md`](./llm-escape-room.prd.md) — problem, hypothesis, MVP scope, success
   metrics, non-goals and open questions.
@@ -115,6 +116,18 @@ only the site id, the host, `/run/<id>` and the event name. There is no cookie a
 the environment that builds the public site, not in a local `.env`. To read the funnel back against the
 ≥ 50% target, run `node --env-file-if-exists=.env --import tsx scripts/watch-through.mts` with
 `UMAMI_API_KEY` set.
+
+**Race any two free models from the browser.** Run `pnpm dev` and open `/race`. Pick two models, a room and
+a number of silent repeats, and press Start. The models are listed live from Groq, Google Gemini and
+OpenRouter, and only models that are free and can be forced to make a tool call are offered, so every model
+plays by the same rules. Models a provider lists but that cannot play (retired, no free quota, a limit smaller
+than one turn) are listed separately with the reason. A race makes live calls on the keys in `.env` and takes
+a few minutes. Progress streams in as it runs, then the replay and comparison play on the same page. The run
+is saved under `runs/<runId>/`, and the page shows the `scripts/publish.mts` command that turns it into a
+`/run/<id>` URL. OpenRouter needs `OPENROUTER_API_KEY` (free); its models are listed even before the key is
+set. The page and its API routes exist only under `next dev`. A production build returns 404 for them unless
+`ENABLE_LOCAL_RACE=1`, so the public replay site never spends your keys (`docs/decisions/local-race.md`). From
+the terminal, `scripts/run.mts --a <provider>:<model> --b <provider>:<model>` takes the same provider names.
 
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate

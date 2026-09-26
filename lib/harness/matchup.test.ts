@@ -73,6 +73,22 @@ function matchup(duels: readonly Duel[], repeats: number) {
 }
 
 describe('runMatchup', () => {
+  it('hands over the main run before the first repeat starts', async () => {
+    const { adapters: map, requestsA } = adapters(['a', 'b']);
+    const seen: { runId: string; requestsSoFar: number }[] = [];
+    await runMatchup({
+      runId: 'm',
+      spec,
+      competitors: [a, b],
+      adapters: map,
+      repeats: 1,
+      deps: fixedClock(),
+      onHero: (hero) => seen.push({ runId: hero.run.runId, requestsSoFar: requestsA.length }),
+    });
+    expect(seen).toEqual([{ runId: 'm', requestsSoFar: ESCAPE.length }]);
+    expect(requestsA.length).toBeGreaterThan(ESCAPE.length);
+  });
+
   it('runs the hero then numbered repeats, and calls a hero that agrees typical', async () => {
     const { hero, repeats, dropped } = await matchup(['a', 'a', 'a'], 2).result;
     expect(hero.run.runId).toBe('m');

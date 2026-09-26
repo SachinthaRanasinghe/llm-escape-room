@@ -6,7 +6,7 @@
  */
 export type * from './types';
 export { buildSceneLayout, ROOM_HALF } from './layout';
-export { buildReplay, ReplayError, REPLAY_ERROR_REASONS, type ReplayErrorReason, type BuildReplayInput } from './timeline';
+export { beatFromEvent, buildReplay, ReplayError, REPLAY_ERROR_REASONS, type ReplayErrorReason, type BuildReplayInput } from './timeline';
 export {
   ACT_FRACTION,
   BEAT_MS,
@@ -15,6 +15,7 @@ export {
   EXIT_FADE_MS,
   EXIT_WALK_MS,
   INTRO_MS,
+  allVerdictsIn,
   isSettled,
   LANE_OFFSET_MS,
   laneAt,
@@ -38,6 +39,9 @@ export {
 export { laneStateAt } from './roomState';
 export {
   describeAction,
+  describeCall,
+  describeDoing,
+  describeOutcome,
   describeEnd,
   END_LABEL,
   formatThink,

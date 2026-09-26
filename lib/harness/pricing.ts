@@ -6,8 +6,10 @@ import type { Competitor, Provider } from '@/lib/schema/run';
  *
  * Every model below is on a free tier, so every price is zero. The table exists
  * anyway because `lib/schema/run.ts` keeps `costUsd` as a guardrail: a run that
- * quietly starts costing money is a result worth seeing, and seeing it needs a
- * real price the day a paid model is added.
+ * quietly starts costing money is a result worth seeing. The paid models the race
+ * page offers (Claude, through OpenRouter) are not listed here — their prices
+ * change with OpenRouter's listing, so `/race` passes the live listed price in
+ * `DuelOptions.prices` instead.
  *
  * ── An unknown model is $0, and says so ────────────────────────────────────
  * Zero for a model nobody priced is a GUESS. `priced: false` carries that out to
@@ -40,14 +42,25 @@ export const PRICING: PriceTable = {
     'llama-3.1-8b-instant': FREE,
   },
   gemini: { 'gemini-flash-latest': FREE },
+  openrouter: {},
 };
+
+/**
+ * OpenRouter's `:free` suffix IS the price: it names the zero-cost variant of a
+ * model, and OpenRouter bills it at $0 by definition. A suffix rule rather than a
+ * table row because the free list turns over weekly. Without the suffix an
+ * OpenRouter model is unpriced like any other unknown.
+ */
+function freeByName(competitor: Pick<Competitor, 'provider' | 'modelId'>): Price | undefined {
+  return competitor.provider === 'openrouter' && competitor.modelId.endsWith(':free') ? FREE : undefined;
+}
 
 export function costOf(
   competitor: Pick<Competitor, 'provider' | 'modelId'>,
   tokens: { readonly prompt: number; readonly completion: number },
   table: PriceTable = PRICING,
 ): { usd: number; priced: boolean } {
-  const price = table[competitor.provider][competitor.modelId];
+  const price = table[competitor.provider][competitor.modelId] ?? freeByName(competitor);
   if (price === undefined) return { usd: 0, priced: false };
   const usd = (tokens.prompt * price.promptPerMTok + tokens.completion * price.completionPerMTok) / 1_000_000;
   // Six places keeps float noise out of published JSON; a millionth of a dollar is below anything worth reporting.

@@ -1,33 +1,27 @@
 /*
- * Replay chrome. The 3D scene is the footage: it keeps its size and brightness.
- * Everything around it is restrained — opacity over transforms, nothing
- * decorative, the system font stack (no font download, so the build stays
- * offline-safe).
+ * Replay chrome. The 3D room is the interface: each lane is its room, and the
+ * HUD (`LaneHud.tsx`) is projected onto it — translucent glass at the edges,
+ * one compact card pinned beside the object being acted on. Nothing opaque or
+ * large sits over the room. Tokens come from `app/globals.css`.
  *
  * TYPOGRAPHY IS SPIKE 3's KNOB. If an intent does not read at beat pace, tune
- * --intent-size / --intent-long-size / line-height here (and the constants in
- * lib/replay/beats.ts) — never truncate. There is deliberately no
- * text-overflow and no line clamp anywhere in this file.
+ * `.hudIntent` here (and the constants in lib/replay/beats.ts) — never
+ * truncate. There is deliberately no text-overflow and no line clamp anywhere
+ * in this file.
  */
 
 .root {
-  --bg: #0f1115;
-  --surface: #181b21;
-  --text: #eceae4;
-  --muted: #9aa0aa;
-  --rule: #2a2e36;
-  --lane-a: #e0a458; /* fallback — ReplayPlayer sets both inline from the renderer snapshot's assets.laneColours */
-  --lane-b: #5ab1bb;
-  --success: #6fcf86;
-  --failure: #e0655b;
-  --intent-size: clamp(1.125rem, 1rem + 0.6vw, 1.5rem);
-  --intent-long-size: clamp(1rem, 0.92rem + 0.4vw, 1.25rem);
-  --fade: 180ms;
+  --bg: var(--ink-0, #07080b);
+  --surface: var(--ink-2, #12151c);
+  --rule: var(--line, rgba(255, 255, 255, 0.07));
+  --lane-a: #f2a65a; /* fallback — ReplayPlayer sets both inline from the renderer snapshot's assets.laneColours */
+  --lane-b: #4fd1c5;
+  --fade: 220ms;
 
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   display: flex;
   flex-direction: column;
 }
@@ -38,81 +32,216 @@
   }
 }
 
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+
 .bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 24px;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, var(--ink-1), var(--ink-0));
   border-bottom: 1px solid var(--rule);
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.home {
+  display: inline-flex;
+  gap: 3px;
+  padding: 8px;
+  margin: -8px 0 -8px -8px;
+  border-radius: 8px;
+  transition: background 150ms;
+}
+
+.home:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home span {
+  width: 7px;
+  height: 15px;
+  border-radius: 4px 4px 2px 2px;
+  background: var(--lane-a);
+}
+
+.home span + span {
+  background: var(--lane-b);
 }
 
 .title {
   margin: 0;
   font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chipLive {
+  color: var(--failure);
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.08);
+}
+
+.chipLive::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 1.4s ease-in-out infinite;
 }
 
 .controls {
   display: flex;
+  align-items: center;
   gap: 8px;
+  flex: none;
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--text);
-  background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
   cursor: pointer;
-  transition: border-color var(--fade);
+  transition: background var(--fade), border-color var(--fade);
 }
 
 .button:hover,
 .button:focus-visible {
-  border-color: var(--muted);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.24);
 }
+
+.buttonPrimary {
+  color: #1b1206;
+  background: linear-gradient(180deg, #ffc285, var(--accent));
+  border-color: transparent;
+}
+
+.buttonPrimary:hover,
+.buttonPrimary:focus-visible {
+  background: linear-gradient(180deg, #ffd0a0, #f5b171);
+  border-color: transparent;
+}
+
+.iconButton {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* The run's clock, as a hairline under the bar. */
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+}
+
+.progressFill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 300ms ease-out;
+  background: linear-gradient(90deg, var(--lane-a), var(--lane-b));
+  box-shadow: 0 0 12px rgba(242, 166, 90, 0.5);
+}
+
+/* ── Stage ───────────────────────────────────────────────────────────────── */
 
 .stage {
   position: relative;
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .lanes {
-  position: relative;
-  z-index: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--rule);
-  flex: 1;
+  gap: 2px;
+  background: var(--ink-0);
 }
 
+/*
+ * A lane IS its room: the 3D view fills it and the HUD lies on top, as tall as
+ * the screen allows. Much narrower than 5:4 and the frozen camera starts to
+ * cut off the side walls.
+ */
 .lane {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
+  position: relative;
   min-width: 0;
+  aspect-ratio: 5 / 4;
+  max-height: calc(100dvh - 60px);
+  min-height: 420px;
+  background: var(--bg);
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.lane::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lane), transparent);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .view {
-  flex: 1;
-  min-height: 46vh;
+  position: absolute;
+  inset: 0;
 }
 
-.panel {
-  background: var(--surface);
-  border-top: 3px solid var(--lane);
-  padding: 16px 24px 12px;
-  min-height: 12.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/*
+ * A lens vignette over the room: edges fall to near-black so the lamplit centre
+ * reads as the subject. Above the canvas (z-index 2) and below the HUD, which
+ * shares z-index 3 but comes later in the lane.
+ */
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 75% 70% at 50% 55%, transparent 55%, rgba(3, 4, 7, 0.55) 100%),
+    linear-gradient(180deg, rgba(3, 4, 7, 0.35) 0%, transparent 18%, transparent 80%, rgba(3, 4, 7, 0.4) 100%);
 }
 
 .laneA {
@@ -123,138 +252,971 @@
   --lane: var(--lane-b);
 }
 
-.panelHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  font-size: 0.875rem;
+/* ── HUD: information projected into the room ────────────────────────────── */
+
+/* Above the canvas (z-index 2), which is transparent only outside the views. */
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  font-size: 0.8125rem;
+  color: var(--text);
 }
 
-.model {
-  font-weight: 600;
+.glass {
+  background: rgba(9, 11, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 12px 32px -14px rgba(0, 0, 0, 0.8);
+}
+
+/* Blur only on a GPU: over a moving canvas it is recomputed every frame. */
+.root[data-quality='high'] .glass {
+  background: rgba(9, 11, 16, 0.52);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+.icon {
+  flex: none;
+}
+
+/* Who this is — the outer top corner. */
+.idCard {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 28px);
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
+}
+
+.hudRight .idCard {
+  left: auto;
+  right: 14px;
+  flex-direction: row-reverse;
+  padding: 8px 8px 8px 12px;
+  text-align: right;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--lane);
+  color: #0b0d12;
+  font-weight: 800;
+  font-size: 0.9375rem;
+  box-shadow: 0 0 18px -4px var(--lane);
+}
+
+.idText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.idKicker {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--lane);
 }
 
-.provider {
+.idName {
+  font-size: 0.875rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.idProvider {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-.count {
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badgeLive {
+  color: var(--failure);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+.badgeLive::before {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.badgePlay {
+  color: var(--lane);
+  border-color: color-mix(in srgb, var(--lane) 45%, transparent);
+}
+
+.badgeWin {
+  color: var(--success);
+  border-color: rgba(94, 228, 154, 0.45);
+  background: rgba(94, 228, 154, 0.1);
+}
+
+.badgeLose {
+  color: var(--failure);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+/* That both rooms are the same challenge, run apart — the inner top corner. */
+.roomTag {
+  position: absolute;
+  top: 22px;
+  right: 18px;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(238, 240, 244, 0.5);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.hudRight .roomTag {
+  right: auto;
+  left: 18px;
+}
+
+/* The line from the object to its card. */
+.leader {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.leader line {
+  stroke: var(--lane);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.leader circle {
+  fill: var(--lane);
+  filter: drop-shadow(0 0 6px var(--lane));
+}
+
+.leader .leaderPulse {
+  fill: none;
+  stroke: var(--lane);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 1.8s ease-out infinite;
+}
+
+/* ── The current event ── */
+
+.card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(18.5rem, calc(100% - 24px));
+  border-radius: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--lane) 60%, transparent);
+  transition:
+    transform 450ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--fade);
+}
+
+.cardHidden {
+  opacity: 0;
+}
+
+.cardInner {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 13px 12px;
+  border-radius: inherit;
+  animation: cardIn 360ms ease-out;
+}
+
+.step {
+  position: relative;
+  padding-left: 12px;
+  opacity: 0.6;
+  transition: opacity var(--fade);
+}
+
+.step::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  transition:
+    background var(--fade),
+    box-shadow var(--fade);
+}
+
+.stepNow {
+  opacity: 1;
+}
+
+.stepNow::before {
+  background: var(--lane);
+  box-shadow: 0 0 8px var(--lane);
+}
+
+.stepLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.stepAside {
   margin-left: auto;
+  padding-left: 12px;
   color: var(--muted);
+  letter-spacing: 0.1em;
+}
+
+.hudIntent {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.hudIntent::before {
+  content: '“';
+}
+
+.hudIntent::after {
+  content: '”';
+}
+
+.noIntent {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.doing {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.call {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--lane);
+  overflow-wrap: anywhere;
+}
+
+.reply {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  animation: fadeIn var(--fade) ease-out;
+}
+
+.remaining {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.toneWord {
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  letter-spacing: 0.1em;
+}
+
+.success .response .stepLabel {
+  color: var(--success);
+}
+
+.success .response::before {
+  background: var(--success);
+  box-shadow: 0 0 10px var(--success);
+}
+
+.failure .response .stepLabel {
+  color: var(--failure);
+}
+
+.failure .response::before {
+  background: var(--failure);
+  box-shadow: 0 0 10px var(--failure);
+}
+
+.invalid .response .stepLabel {
+  color: var(--warning);
+}
+
+.invalid .response::before {
+  background: var(--warning);
+  box-shadow: 0 0 10px var(--warning);
+}
+
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-2);
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.next::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lane);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Before the first move: what the model is shown. */
+.introStatus {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lane);
+}
+
+.introMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* The end: a game result, not a log line. */
+.result {
+  align-items: center;
+  gap: 5px;
+  padding: 16px 22px 18px;
+  text-align: center;
+}
+
+.result.success {
+  box-shadow:
+    0 0 0 1px rgba(94, 228, 154, 0.35),
+    0 0 48px -12px rgba(94, 228, 154, 0.55);
+}
+
+.result.failure {
+  box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.25);
+}
+
+.resultKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.result.success .resultKicker {
+  color: var(--success);
+}
+
+.result.failure .resultKicker {
+  color: var(--failure);
+}
+
+.resultHeadline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.resultLine {
+  margin: 0;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.resultStats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 8px 0 0;
+}
+
+/* ── The bottom band: recent activity, and the rail ── */
+
+.bottom {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.hudRight .bottom {
+  flex-direction: row-reverse;
+}
+
+.activity {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 min(14rem, 32%);
+  max-height: 6.5rem;
+  padding: 8px 10px 8px 12px;
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.activityTitle {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 5px 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-2);
+}
+
+.activityList li {
+  display: flex;
+  gap: 7px;
+}
+
+.activityList .icon {
+  margin-top: 1px;
+}
+
+.activityList .success .icon {
+  color: var(--success);
+}
+
+.activityList .failure .icon {
+  color: var(--failure);
+}
+
+.activityList .invalid .icon {
+  color: var(--warning);
+}
+
+.activityList .neutral .icon {
+  color: var(--muted);
+}
+
+.activityNow {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.activityNow .icon {
+  color: var(--lane);
+}
+
+/* ── The rail: every number, with its label ── */
+
+.rail {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 14px 7px;
+  border-radius: 12px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
+  gap: 4px 14px;
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat dt {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.statExtra {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stat dd {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
 
-.beat {
-  animation: fadeIn var(--fade) ease-out;
+.pips {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.pip {
   flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background var(--fade);
+}
+
+.pipDone {
+  background: color-mix(in srgb, var(--lane) 70%, transparent);
+}
+
+.pipNow {
+  background: var(--lane);
+  box-shadow: 0 0 6px var(--lane);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Motion ── */
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
-  to {
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
     opacity: 1;
   }
 }
 
-.intent {
-  margin: 0;
-  font-size: var(--intent-size);
-  line-height: 1.35;
-  font-weight: 500;
-  max-width: 36ch;
-  overflow-wrap: anywhere;
+@keyframes ping {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
 }
 
-.intent::before {
-  content: '\201C';
-}
-
-.intent::after {
-  content: '\201D';
-}
-
-.intentLong {
-  font-size: var(--intent-long-size);
-}
-
-.noIntent {
-  margin: 0;
-  font-size: 1rem;
-  font-style: italic;
-  color: var(--muted);
-}
-
-.action {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--muted);
-}
-
-.verdict {
-  margin: 0;
-  font-size: 0.9375rem;
-  transition: opacity var(--fade);
-}
-
-.success {
-  color: var(--success);
-}
-
-.neutral {
-  color: var(--text);
-}
-
-.failure,
-.invalid {
-  color: var(--failure);
-}
-
-.status,
-.ready {
-  margin: 0;
-  flex: 1;
-  font-size: var(--intent-size);
-  font-weight: 600;
-}
-
-.ready {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.stats {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.stats strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
-@media (max-width: 720px) {
-  .bar {
-    padding: 12px 16px;
+@media (prefers-reduced-motion: reduce) {
+  .chipLive::before,
+  .badgeLive::before,
+  .typing span,
+  .next::before,
+  .pipNow,
+  .leader .leaderPulse,
+  .cardInner {
+    animation: none;
   }
 
+  .card {
+    transition: none;
+  }
+}
+
+/* ── Narrow lanes: tighter HUD ── */
+
+@container (max-width: 680px) {
+  .roomTag {
+    display: none;
+  }
+
+  .hudRight .idCard {
+    flex-direction: row;
+    padding: 8px 12px 8px 8px;
+    text-align: left;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, auto);
+    justify-content: start;
+    gap: 4px 24px;
+  }
+
+  .stat dd {
+    font-size: 0.8125rem;
+  }
+
+  .bottom,
+  .hudRight .bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .activity {
+    flex: none;
+    width: min(16rem, 100%);
+    max-height: 4.75rem;
+  }
+
+  .hudRight .activity {
+    align-self: flex-end;
+  }
+}
+
+/* Stacked, one room per row, when two side by side would be too small to read. */
+@media (max-width: 1200px) {
   .lanes {
     grid-template-columns: 1fr;
   }
+}
 
-  .view {
-    min-height: 38vh;
+/* A phone: the room on top, the HUD's cards in flow beneath it. */
+@media (max-width: 720px) {
+  .bar {
+    flex-wrap: wrap;
+    padding: 10px 16px;
   }
 
-  .panel {
-    padding: 12px 16px;
-    min-height: 10rem;
+  .titleGroup {
+    flex: 1 1 100%;
+  }
+
+  .chip {
+    display: none;
+  }
+
+  .lane {
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .view {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+  }
+
+  .hud {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px 16px;
+  }
+
+  .idCard,
+  .hudRight .idCard {
+    top: 10px;
+    left: 10px;
+    right: auto;
+    flex-direction: row;
+    padding: 6px 10px 6px 6px;
+    text-align: left;
+  }
+
+  .leader {
+    display: none;
+  }
+
+  .card,
+  .bottom {
+    position: static;
+    width: auto;
+    max-width: none;
+  }
+
+  .activity,
+  .hudRight .activity {
+    width: auto;
+    align-self: stretch;
+  }
+
+  .card {
+    transform: none !important;
+  }
+
+  .activity {
+    max-height: 7.5rem;
+  }
+}
+
+/* ── Briefing ─────────────────────────────────────────────────────────────── */
+
+.briefing {
+  position: relative;
+  z-index: 3;
+  border-bottom: 1px solid var(--rule);
+  background: var(--ink-1);
+}
+
+.briefingSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+.briefingSummary::-webkit-details-marker {
+  display: none;
+}
+
+.briefingSummary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 150ms;
+}
+
+.briefing[open] > .briefingSummary::before {
+  transform: rotate(45deg);
+}
+
+.briefingTitle {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.briefingHint {
+  color: var(--muted);
+}
+
+.briefingBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 20px 12px;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.legend li {
+  display: flex;
+  gap: 12px;
+}
+
+.legend strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.legendKey {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 30px;
+  height: 21px;
+}
+
+.dotA,
+.dotB {
+  width: 9px;
+  height: 14px;
+  border-radius: 5px 5px 2px 2px;
+  background: var(--lane-a);
+}
+
+.dotB {
+  background: var(--lane-b);
+}
+
+.ring {
+  width: 22px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.bubble {
+  width: 20px;
+  height: 14px;
+  border-radius: 6px 6px 6px 2px;
+  border: 1.5px solid var(--text-2);
+}
+
+.prompt {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.promptSummary {
+  cursor: pointer;
+  color: var(--accent-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.prompt[open] .promptText {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.promptText {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+@media (max-width: 900px) {
+  .legend {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .briefingSummary,
+  .briefingBody {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .briefingHint {
+    display: none;
   }
 }

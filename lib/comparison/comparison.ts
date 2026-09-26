@@ -51,7 +51,11 @@ export interface ComparisonRow {
   readonly cost: string;
 }
 
-export type VarianceKind = 'unrepeated' | 'all_dropped' | 'typical' | 'atypical';
+/**
+ * `stopped`: a provider ended the race early — the local race page only (`stopped.ts`).
+ * `pending`: the main run is over and its silent repeats are still running — also the race page only.
+ */
+export type VarianceKind = 'unrepeated' | 'all_dropped' | 'typical' | 'atypical' | 'stopped' | 'pending';
 
 export interface VarianceStatement {
   readonly kind: VarianceKind;
@@ -221,5 +225,27 @@ export function buildComparison({ run, repeats, actionsTaken, puzzleCount }: Com
     variance: varianceOf(run, outcome, repeats),
     limitation: LIMITATION,
     escapeTimeNote: ESCAPE_TIME_NOTE,
+  };
+}
+
+/**
+ * The main run's result the moment it ends, before its silent repeats have run —
+ * so the local race page can show the winner at once. Everything but the
+ * variance statement is final; that says the check for luck is still running,
+ * and the finished race's comparison replaces this one when it is done.
+ */
+export function buildEarlyComparison(input: Omit<ComparisonInput, 'repeats'> & { readonly repeatsToRun: number }): ComparisonData {
+  const { repeatsToRun, ...rest } = input;
+  const comparison = buildComparison({ ...rest, repeats: { completed: 0, dropped: 0, outcomes: [] } });
+  if (repeatsToRun === 0) return comparison;
+  return {
+    ...comparison,
+    variance: {
+      kind: 'pending',
+      title: 'Checking for luck…',
+      body:
+        `The same room is being re-run ${plural(repeatsToRun, 'more time')} without being shown, to see whether ` +
+        'this result is typical. This note updates when that finishes; the result above will not change.',
+    },
   };
 }

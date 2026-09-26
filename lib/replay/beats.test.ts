@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCanonicalLog, loadCanonicalRoom, loadCanonicalRun } from '@/fixtures';
 import {
   ACT_FRACTION,
+  allVerdictsIn,
   BEAT_MS,
   beatStartMs,
   INTRO_MS,
@@ -113,5 +114,22 @@ describe('laneAt', () => {
     expect(isSettled(laneAt(plan, 0, s))).toBe(false);
     expect(isSettled(laneAt(plan, 0, s + BEAT_MS * 0.9))).toBe(true);
     expect(isSettled(laneAt(plan, 0, plan.totalMs))).toBe(true);
+  });
+});
+
+describe('allVerdictsIn', () => {
+  const plan = planBeats(replayData([lane(3), lane(2, { competitorId: 'b' })]));
+  const at = (t: number) => plan.beatCounts.map((_, i) => laneAt(plan, i, t));
+  const settle = (i: number, b: number) => beatStartMs(plan, i, b) + (WALK_FRACTION + ACT_FRACTION) * BEAT_MS;
+
+  it('waits for the last lane to be judged on its last action', () => {
+    expect(allVerdictsIn(plan, at(settle(1, 1)))).toBe(false); // lane b is judged, lane a is still acting
+    expect(allVerdictsIn(plan, at(settle(0, 2) - 1))).toBe(false);
+    expect(allVerdictsIn(plan, at(settle(0, 2)))).toBe(true);
+  });
+
+  it('comes well before the end of the replay, which only lets the scene settle', () => {
+    expect(settle(0, 2)).toBeLessThan(plan.totalMs - OUTRO_MS);
+    expect(allVerdictsIn(plan, at(plan.totalMs))).toBe(true);
   });
 });

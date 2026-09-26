@@ -47,3 +47,6 @@ venv/
 # Run artifacts
 /runs/
 *.run.json
+
+# Local launch videos made with /brag (large, not source)
+/brag-output*/

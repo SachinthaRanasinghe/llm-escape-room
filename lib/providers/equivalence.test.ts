@@ -3,6 +3,7 @@ import { ACTION_NAMES, ActionSchema, type Action } from '@/lib/schema/action';
 import { loadCanonicalLog } from '@/fixtures';
 import { compileGroqRequest, compileGroqTools, decodeGroqResponse, normaliseGroqTools } from './groq';
 import { compileGeminiRequest, compileGeminiTools, decodeGeminiResponse, normaliseGeminiTools } from './gemini';
+import { compileOpenRouterRequest, decodeOpenRouterResponse } from './openrouter';
 import { buildPortableSpec, type PortableSpec } from './vocabulary';
 import { findSpecDrift } from './equivalence';
 import type { TurnRequest } from './types';
@@ -249,5 +250,49 @@ describe('both models are framed by the same text under the same mode', () => {
 
   it('compiles its tools from the same portable spec', () => {
     expect(findSpecDrift(normaliseGroqTools(groqBody.tools), normaliseGeminiTools((geminiBody.tools as unknown[])[0]))).toEqual([]);
+  });
+});
+
+/**
+ * OpenRouter shares Groq's dialect, so it inherits Groq's proof rather than
+ * needing its own — PROVIDED it really sends what Groq sends. These pin that,
+ * and then re-run the cross-dialect checks against Gemini through it.
+ */
+describe('OpenRouter is held to the same task', () => {
+  const request: TurnRequest = {
+    system: 'You are in a locked room. Escape.',
+    transcript: [
+      { kind: 'user', text: 'You see a writing desk and a studded door.' },
+      { kind: 'tool_call', call: { callId: 'c1', toolName: 'inspect', args: { targetId: 'desk', intent: 'Read.' } } },
+      { kind: 'tool_result', callId: 'c1', toolName: 'inspect', text: 'A ledger lies open.' },
+    ],
+  };
+  const config = { modelId: 'x', params: { temperature: null, topP: null } };
+  const body = compileOpenRouterRequest(request, config);
+
+  it('source ↔ OpenRouter: zero drift', () => {
+    expect(findSpecDrift(source, normaliseGroqTools(body.tools))).toEqual([]);
+  });
+
+  it('OpenRouter ↔ Gemini: zero drift, and the same forced mode', () => {
+    const gemini = compileGeminiRequest(request, config);
+    expect(findSpecDrift(normaliseGroqTools(body.tools), normaliseGeminiTools((gemini.tools as unknown[])[0]))).toEqual([]);
+    expect(body.tool_choice).toBe('required');
+    expect(body.parallel_tool_calls).toBe(false);
+  });
+
+  it('sends Groq\'s request and no key Groq does not send', () => {
+    expect(Object.keys(body).sort()).toEqual(Object.keys(compileGroqRequest(request, config)).sort());
+  });
+
+  it('decodes every golden-log action the same as Gemini does', () => {
+    for (const event of loadCanonicalLog()) {
+      const { name, ...args } = event.action!;
+      const viaOpenRouter = decodeOpenRouterResponse(200, groqToolCallResponse([{ name, arguments: JSON.stringify(args) }]), {
+        callIndex: 0,
+      });
+      const viaGemini = decodeGeminiResponse(200, geminiFunctionCallResponse([{ functionCall: { name, args } }]), { callIndex: 0 });
+      expect(viaOpenRouter.rawAction).toEqual(viaGemini.rawAction);
+    }
   });
 });

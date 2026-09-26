@@ -45,6 +45,9 @@ export function geminiEndpoint(modelId: string): string {
   return `${GEMINI_HOST}/v1beta/models/${encodeURIComponent(modelId)}:generateContent`;
 }
 
+/** The live model list — read by `catalogue.ts`, which names no host itself. */
+export const GEMINI_MODELS_ENDPOINT = `${GEMINI_HOST}/v1beta/models?pageSize=1000`;
+
 interface GeminiParam {
   type: 'STRING';
   description: string;

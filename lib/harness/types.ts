@@ -1,7 +1,9 @@
 import type { ProviderAdapter } from '@/lib/providers';
 import type { RoomSpec } from '@/lib/schema/room';
-import type { Competitor } from '@/lib/schema/run';
+import type { Event } from '@/lib/schema/event';
+import type { Competitor, EndReason } from '@/lib/schema/run';
 import type { Budget } from '@/lib/sim';
+import type { PriceTable } from './pricing';
 
 /**
  * Shared shapes for the run harness — TICKET-6 (#7).
@@ -36,4 +38,18 @@ export interface DuelOptions {
   /** Default `DEFAULT_BUDGET`. */
   readonly budget?: Budget;
   readonly deps: HarnessDeps;
+  /**
+   * Called as each action is logged, with how the competitor's run ended when
+   * this action ended it (`null` otherwise). For watching a run live — it sees
+   * exactly what the log records, and a throw from it is swallowed so a watcher
+   * can never change or break the run.
+   */
+  readonly onEvent?: EventObserver;
+  /**
+   * Default `PRICING`. The race page passes a table that adds the live listed
+   * price of a paid pick, so its `costUsd` is real rather than an unpriced $0.
+   */
+  readonly prices?: PriceTable;
 }
+
+export type EventObserver = (event: Event, ended: EndReason | null) => void;

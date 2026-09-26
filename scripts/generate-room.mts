@@ -3,7 +3,7 @@
  *
  * Run with:
  *   node --env-file-if-exists=.env --import tsx scripts/generate-room.mts --seed <seed>
- *     [--strategy symbolic] [--provider groq|gemini] [--model <id>] [--max-attempts 5] [--out runs/rooms]
+ *     [--strategy symbolic] [--provider groq|gemini|openrouter] [--model <id>] [--max-attempts 5] [--out runs/rooms]
  *
  * Writes `<out>/<roomId>.json` (the certified `RoomSpec`) and
  * `<out>/<roomId>.generation.json` (every attempt, answer-free). On a tripped cap
@@ -25,11 +25,15 @@ import { GenerationAbortedError, generateRoom, resolveStrategy, type GenerationR
 import { ProviderError, createGenerationClient, readProviderKey } from '../lib/providers';
 import { ProviderSchema, type Provider } from '../lib/schema/run';
 
-const DEFAULT_MODELS: Record<Provider, string> = { groq: 'openai/gpt-oss-120b', gemini: 'gemini-flash-latest' };
+const DEFAULT_MODELS: Record<Provider, string> = {
+  groq: 'openai/gpt-oss-120b',
+  gemini: 'gemini-flash-latest',
+  openrouter: 'nvidia/nemotron-3-super-120b-a12b:free',
+};
 
 const USAGE =
   'usage: node --env-file-if-exists=.env --import tsx scripts/generate-room.mts --seed <seed> ' +
-  '[--strategy symbolic] [--provider groq|gemini] [--model <id>] [--max-attempts 5] [--out runs/rooms]';
+  '[--strategy symbolic] [--provider groq|gemini|openrouter] [--model <id>] [--max-attempts 5] [--out runs/rooms]';
 
 const { values } = parseArgs({
   options: {

@@ -86,8 +86,9 @@ served statically. A database is a later problem, and a reversible one.
 ### Boundaries & contracts
 
 - **Simulator ↔ models.** The only channel. Models never see room internals, only what the simulator returns.
-- **Provider adapters.** Groq and Gemini behind one interface; the normalised vocabulary compiles to each. An
-  equivalence check proves the compiled tool specs are genuinely the same task before any result is published.
+- **Provider adapters.** Groq, Gemini and OpenRouter behind one interface; the normalised vocabulary compiles to
+  each (OpenRouter shares Groq's dialect byte for byte). An equivalence check proves the compiled tool specs are
+  genuinely the same task before any result is published.
 - **Invalid actions.** The simulator returns a clear error and the attempt consumes a turn. Using the interface
   correctly is part of the task; the count is published as a metric, not hidden.
 - **Run budget.** Every run is capped on actions, tokens and wall clock. Exhausting the budget is a recorded
@@ -97,6 +98,10 @@ served statically. A database is a later problem, and a reversible one.
 - **Replay ↔ artifact.** One-way. The player reads the artifact; it cannot reach a provider even in principle.
   The published page sends four anonymous watch-through events to one telemetry host, and nothing else leaves it
   (`docs/decisions/telemetry.md`).
+- **Local race page.** The one exception to "no server", and local by construction: `/race` and its two route
+  handlers run the harness on the owner's keys under `next dev`, and 404 in a production build unless
+  `ENABLE_LOCAL_RACE=1`. Only free models from the live catalogue can be raced. The published `/run/<id>` path is
+  unchanged (`docs/decisions/local-race.md`).
 
 ### Other calls
 

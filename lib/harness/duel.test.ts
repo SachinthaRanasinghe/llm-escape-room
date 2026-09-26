@@ -97,6 +97,44 @@ describe('runDuel', () => {
     expect(requestsA.length + requestsB.length).toBe(0);
   });
 
+  it('reports every logged action to a watcher as it happens, with the end on the action that ended the run', async () => {
+    const sa = scriptedAdapter([readLedger, unlockSafe, openSafe, look], { provider: a.provider, modelId: a.modelId });
+    const sb = scriptedAdapter([look, look, look, look], { provider: b.provider, modelId: b.modelId });
+    const seen: { competitorId: string; seq: number; ended: string | null }[] = [];
+    const { events } = await runDuel({
+      runId: 'run-duel',
+      spec,
+      competitors: [a, b],
+      adapters: { [a.id]: sa.adapter, [b.id]: sb.adapter },
+      budget,
+      deps: fixedClock(),
+      onEvent: (event, ended) => seen.push({ competitorId: event.competitorId, seq: event.seq, ended }),
+    });
+    expect(seen).toHaveLength(events.length);
+    for (const id of [a.id, b.id]) {
+      const mine = seen.filter((s) => s.competitorId === id);
+      expect(mine.map((s) => s.seq)).toEqual([0, 1, 2, 3]);
+      expect(mine.map((s) => s.ended)).toEqual([null, null, null, 'budget_actions']);
+    }
+  });
+
+  it('cannot be broken by a watcher that throws', async () => {
+    const sa = scriptedAdapter([look, look, look, look], { provider: a.provider, modelId: a.modelId });
+    const sb = scriptedAdapter([look, look, look, look], { provider: b.provider, modelId: b.modelId });
+    const { events } = await runDuel({
+      runId: 'run-duel',
+      spec,
+      competitors: [a, b],
+      adapters: { [a.id]: sa.adapter, [b.id]: sb.adapter },
+      budget,
+      deps: fixedClock(),
+      onEvent: () => {
+        throw new Error('watcher bug');
+      },
+    });
+    expect(events).toHaveLength(8);
+  });
+
   it('is deterministic for the same scripts and clock', async () => {
     const first = await duel([readLedger, unlockSafe, openSafe, look], [look, look, openSafe, look]).result;
     const second = await duel([readLedger, unlockSafe, openSafe, look], [look, look, openSafe, look]).result;

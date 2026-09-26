@@ -1,6 +1,7 @@
 import type { Competitor } from '@/lib/schema/run';
 import { GROQ_ENDPOINT, compileGroqJsonRequest, decodeGroqJsonResponse } from './groq';
 import { compileGeminiJsonRequest, decodeGeminiJsonResponse, geminiEndpoint } from './gemini';
+import { completeOpenRouterJson } from './openrouter';
 import { DEFAULT_DEPS, postJson, type TransportDeps } from './transport';
 import type { GenerationClient } from './types';
 
@@ -24,7 +25,7 @@ import type { GenerationClient } from './types';
  * generation prompt, so there is no second translation to drift from it.
  *
  * ── Endpoints are imported, never written ──────────────────────────────────
- * `secrets.test.ts` asserts the provider hosts are named only in the two
+ * `secrets.test.ts` asserts the provider hosts are named only in the
  * adapter files. This one takes them from there.
  */
 export function createGenerationClient(
@@ -58,6 +59,12 @@ export function createGenerationClient(
           const decoded = decodeGeminiJsonResponse(result.status, result.json, { secrets, attempts: result.attempts });
           return { ...decoded, latencyMs: result.latencyMs, attempts: result.attempts };
         },
+      };
+    case 'openrouter':
+      return {
+        provider: 'openrouter',
+        modelId: model.modelId,
+        complete: (request) => completeOpenRouterJson(apiKey, model.modelId, model.params, request, deps),
       };
     default: {
       const unreachable: never = model.provider;

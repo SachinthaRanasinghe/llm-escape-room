@@ -102,7 +102,7 @@ function model(id: string, flag: string, raw: string): Competitor {
   const provider = ProviderSchema.safeParse(raw.slice(0, at));
   const modelId = raw.slice(at + 1).trim();
   if (at < 1 || !provider.success || modelId.length === 0) {
-    fail(`--${flag} must be <provider>:<model> with provider groq or gemini, received "${raw}"\n${USAGE}`, 2);
+    fail(`--${flag} must be <provider>:<model> with provider groq, gemini or openrouter, received "${raw}"\n${USAGE}`, 2);
   }
   return { id, provider: provider.data, modelId, params: { temperature: null, topP: null } };
 }

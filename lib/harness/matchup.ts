@@ -31,6 +31,12 @@ export interface MatchupOptions extends Omit<DuelOptions, 'runId'> {
   readonly repeats?: number;
   /** Counts and ids only — never room content. */
   readonly onProgress?: (message: string) => void;
+  /**
+   * The main run, the moment it ends — before any repeat starts — so a watcher
+   * can show its result without waiting on the silent repeats. Its
+   * `typicalOfRepeats` is still `null`: the repeats have not run yet.
+   */
+  readonly onHero?: (hero: DuelResult) => void;
 }
 
 export interface DroppedRepeat {
@@ -54,13 +60,14 @@ function callsOf(result: DuelResult): number {
 }
 
 export async function runMatchup(options: MatchupOptions): Promise<MatchupResult> {
-  const { runId, repeats: repeatCount = DEFAULT_REPEATS, onProgress, ...duel } = options;
+  const { runId, repeats: repeatCount = DEFAULT_REPEATS, onProgress, onHero, ...duel } = options;
   if (!Number.isInteger(repeatCount) || repeatCount < 0) {
     throw new RangeError(`runMatchup: repeats must be a non-negative integer, received ${repeatCount}`);
   }
 
   onProgress?.(`hero ${runId}`);
   const hero = await runDuel({ ...duel, runId });
+  onHero?.(hero);
   let providerCalls = callsOf(hero);
 
   const repeats: DuelResult[] = [];

@@ -78,6 +78,14 @@ function argumentOf(event: Event): string | null {
   return null;
 }
 
+/**
+ * One event as the player draws it. `buildReplay` uses it for a whole log; the
+ * local race page uses it one event at a time to play a race live.
+ */
+export function beatFromEvent(event: Event, layout: SceneLayout, cumulativeThinkMs: number): ReplayBeat {
+  return toBeat(event, layout, new Set(layout.objects.map((o) => o.id)), cumulativeThinkMs);
+}
+
 function toBeat(event: Event, layout: SceneLayout, known: ReadonlySet<string>, cumulativeThinkMs: number): ReplayBeat {
   const rawTargetId = rawTargetOf(event, layout);
   return {

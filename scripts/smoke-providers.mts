@@ -2,7 +2,7 @@
  * Opt-in live check: one real call per provider whose key is set.
  *
  * Run with: `node --env-file-if-exists=.env --import tsx scripts/smoke-providers.mts`
- *   optional: --groq-model <id> --gemini-model <id>
+ *   optional: --groq-model <id> --gemini-model <id> --openrouter-model <id>
  *
  * NOT part of validation and never collected by vitest (it is `.mts`, not
  * `.test.ts`). `pnpm test` proves the adapters against scripted responses; this
@@ -26,9 +26,14 @@ const { values } = parseArgs({
   options: {
     'groq-model': { type: 'string', default: 'openai/gpt-oss-120b' },
     'gemini-model': { type: 'string', default: 'gemini-flash-latest' },
+    'openrouter-model': { type: 'string', default: 'nvidia/nemotron-3-super-120b-a12b:free' },
   },
 });
-const MODELS: Record<Provider, string> = { groq: values['groq-model']!, gemini: values['gemini-model']! };
+const MODELS: Record<Provider, string> = {
+  groq: values['groq-model']!,
+  gemini: values['gemini-model']!,
+  openrouter: values['openrouter-model']!,
+};
 
 const system =
   'You are trapped in a locked room and must escape. Act only by calling one of the tools. ' +

@@ -1,7 +1,7 @@
 /*
- * Post-run comparison — TICKET-10 (#10). Chrome, not footage: restrained, like
- * replay.module.css, whose tokens (--surface, --text, --muted, --rule, --lane-a,
- * --lane-b, --failure, --fade) cascade here from the player's .root.
+ * Post-run comparison — TICKET-10 (#10). Chrome, not footage: a scorecard in
+ * the player's style, whose tokens (--surface, --text, --muted, --rule,
+ * --lane-a, --lane-b, --failure, --fade) cascade here from the player's .root.
  *
  * The variance statement and the limitation are HONESTY TEXT: body size, full
  * measure, never truncated — no text-overflow, no line clamp, nothing hidden.
@@ -10,8 +10,10 @@
 .results {
   animation: fadeIn var(--fade, 180ms) ease-out;
   border-top: 1px solid var(--rule);
-  background: var(--surface);
-  padding: 32px 24px 48px;
+  background:
+    radial-gradient(900px 300px at 50% 0%, rgba(242, 166, 90, 0.06), transparent 70%),
+    var(--ink-1, #0c0e13);
+  padding: 48px max(24px, calc((100% - 880px) / 2)) 64px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -26,46 +28,81 @@
   }
 }
 
-.headline {
+.eyebrow {
   margin: 0;
-  font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.625rem);
-  font-weight: 600;
+  color: var(--accent, #f2a65a);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.headline {
+  margin: -8px 0 4px;
+  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   outline: none;
+}
+
+.card {
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius, 14px);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .table {
   border-collapse: collapse;
   width: 100%;
-  max-width: 44rem;
   font-variant-numeric: tabular-nums;
 }
 
 .caption {
   text-align: left;
   color: var(--muted);
-  font-size: 0.875rem;
-  padding-bottom: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 16px 20px 4px;
 }
 
 .table th,
 .table td {
   text-align: left;
-  padding: 8px 12px 8px 0;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--rule);
   vertical-align: top;
 }
 
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .metric {
   color: var(--muted);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 0.875rem;
   white-space: nowrap;
 }
 
 .model {
-  font-weight: 600;
+  font-weight: 650;
   color: var(--lane);
-  border-top: 3px solid var(--lane);
+  box-shadow: inset 0 2px 0 var(--lane);
+  background: color-mix(in srgb, var(--lane) 6%, transparent);
+}
+
+.modelName {
+  overflow-wrap: anywhere;
 }
 
 .laneA {
@@ -77,8 +114,19 @@
 }
 
 .winner {
-  color: var(--text);
-  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffd79c, #f2a65a);
+  color: #1b1206;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
 }
 
 .value {
@@ -101,42 +149,55 @@
 
 .variance {
   max-width: 70ch;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
   border-left: 3px solid var(--muted);
-  padding-left: 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .warning {
   border-left-color: var(--failure);
+  background: rgba(255, 107, 107, 0.05);
 }
 
 .varianceTitle {
   margin: 0 0 4px;
   font-size: 1.0625rem;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .varianceBody,
 .limitation {
   margin: 0;
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.varianceBody {
+  color: var(--text-2, #b4bac6);
 }
 
 .limitation {
   max-width: 70ch;
+  color: var(--text-2, #b4bac6);
 }
 
 @media (max-width: 720px) {
   .results {
-    padding: 24px 16px 40px;
+    padding: 32px 16px 48px;
   }
 
   .table th,
   .table td {
-    padding-right: 8px;
+    padding: 10px 10px;
   }
 
   .metric {
     white-space: normal;
+  }
+
+  .winner {
+    margin: 4px 0 0;
   }
 }

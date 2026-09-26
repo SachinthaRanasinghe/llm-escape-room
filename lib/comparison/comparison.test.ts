@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadCanonicalRun } from '@/fixtures';
 import { findLeaks } from '@/lib/artifact/scan';
 import type { Run, RunSummary } from '@/lib/schema/run';
-import { buildComparison, ESCAPE_TIME_NOTE, formatCost, LIMITATION, type ComparisonInput } from './comparison';
+import { buildComparison, buildEarlyComparison, ESCAPE_TIME_NOTE, formatCost, LIMITATION, type ComparisonInput } from './comparison';
 import { outcomeOf, tallyOutcomes, typicalOf } from './outcome';
 
 const canonical = loadCanonicalRun();
@@ -214,5 +214,24 @@ describe('formatCost', () => {
     expect(formatCost(0.001)).toBe('<$0.01');
     expect(formatCost(0.123)).toBe('$0.12');
     expect(formatCost(2)).toBe('$2.00');
+  });
+});
+
+describe('buildEarlyComparison', () => {
+  const run: Run = { ...loadCanonicalRun(), typicalOfRepeats: null };
+  const input = { run, actionsTaken: { 'model-a': 13, 'model-b': 14 }, puzzleCount: 3 };
+
+  it('gives the final result at once, and says the check for luck is still running', () => {
+    const early = buildEarlyComparison({ ...input, repeatsToRun: 1 });
+    const settled = buildComparison({ ...input, repeats: { completed: 0, dropped: 0, outcomes: [] } });
+    expect(early.rows).toEqual(settled.rows);
+    expect(early.headline).toBe(settled.headline);
+    expect(early.variance.kind).toBe('pending');
+    expect(early.variance.body).toContain('re-run 1 more time');
+    expect(findLeaks(JSON.stringify(early))).toEqual([]);
+  });
+
+  it('is simply the comparison when there are no repeats to wait for', () => {
+    expect(buildEarlyComparison({ ...input, repeatsToRun: 0 }).variance.kind).toBe('unrepeated');
   });
 });

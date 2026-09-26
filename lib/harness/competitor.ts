@@ -8,7 +8,7 @@ import type { Competitor, RunSummary } from '@/lib/schema/run';
 import { createSimulator, type Budget } from '@/lib/sim';
 import { SYSTEM_PROMPT, noActionText, openingMessage, verdictText } from './prompt';
 import { buildEvent } from './record';
-import type { HarnessDeps } from './types';
+import type { EventObserver, HarnessDeps } from './types';
 
 /**
  * One competitor's run — TICKET-6 (#7). The loop `lib/sim/index.ts` sketches:
@@ -51,6 +51,8 @@ export interface CompetitorOptions {
    * published.
    */
   readonly shouldStop?: () => boolean;
+  /** See `DuelOptions.onEvent`. */
+  readonly onEvent?: EventObserver;
 }
 
 export interface CompetitorResult {
@@ -108,13 +110,17 @@ export async function runCompetitor(options: CompetitorOptions): Promise<Competi
       tokens: turn.tokens,
       elapsedMs: Math.round(turn.latencyMs),
     });
-    events.push(
-      buildEvent(
-        { runId, competitorId: competitor.id, seq: events.length, at: new Date(deps.now()).toISOString() },
-        turn,
-        result,
-      ),
+    const event = buildEvent(
+      { runId, competitorId: competitor.id, seq: events.length, at: new Date(deps.now()).toISOString() },
+      turn,
+      result,
     );
+    events.push(event);
+    try {
+      options.onEvent?.(event, result.ended);
+    } catch {
+      // A watcher's failure is the watcher's. The run goes on.
+    }
 
     const obs = sim.observe();
     if (turn.toolCall !== null) {

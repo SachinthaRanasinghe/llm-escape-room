@@ -26,9 +26,12 @@ export interface Leak {
 
 const PATTERNS: readonly { kind: LeakKind; pattern: RegExp }[] = [
   { kind: 'url', pattern: /https?:\/\/[^\s"']*/g },
-  { kind: 'endpoint', pattern: /api\.groq\.com|generativelanguage\.googleapis\.com/g },
+  { kind: 'endpoint', pattern: /api\.groq\.com|generativelanguage\.googleapis\.com|openrouter\.ai/g },
   { kind: 'key', pattern: /\bgsk_[A-Za-z0-9]{20,}/g },
   { kind: 'key', pattern: /\bAIza[0-9A-Za-z_-]{30,}/g },
+  // Google's newer API key format.
+  { kind: 'key', pattern: /\bAQ\.[0-9A-Za-z_-]{30,}/g },
+  { kind: 'key', pattern: /\bsk-or-v1-[0-9a-f]{20,}/g },
 ];
 
 const SHOWN = 8;

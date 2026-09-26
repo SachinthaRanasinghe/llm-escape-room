@@ -1,6 +1,7 @@
 import type { Competitor } from '@/lib/schema/run';
 import { createGroqAdapter } from './groq';
 import { createGeminiAdapter } from './gemini';
+import { createOpenRouterAdapter } from './openrouter';
 import type { AdapterOptions, ProviderAdapter } from './types';
 
 /**
@@ -45,6 +46,8 @@ export function createAdapter(
       return createGroqAdapter(options);
     case 'gemini':
       return createGeminiAdapter(options);
+    case 'openrouter':
+      return createOpenRouterAdapter(options);
     default: {
       const unreachable: never = competitor.provider;
       throw new Error(`no adapter for provider ${String(unreachable)}`);
@@ -57,7 +60,10 @@ export { DEFAULT_DEPS, DEFAULT_RETRY } from './transport';
 export type { RetryPolicy, TransportDeps } from './transport';
 export { createGroqAdapter } from './groq';
 export { createGeminiAdapter } from './gemini';
-export { readProviderKey, PROVIDER_KEY_VARS } from './env';
+export { createOpenRouterAdapter } from './openrouter';
+export { listModels, CATALOGUE_EXCLUSIONS, PAID_MODELS } from './catalogue';
+export type { CatalogueExclusion, CatalogueListing, CatalogueModel, ExcludedModel, ModelPrice } from './catalogue';
+export { hasProviderKey, isLocalRaceEnabled, readProviderKey, PROVIDER_KEY_VARS } from './env';
 export { buildPortableSpec } from './vocabulary';
 export type { PortableSpec, PortableTool, PortableParam } from './vocabulary';
 export { findSpecDrift } from './equivalence';

@@ -59,7 +59,7 @@ export const EXIT_FADE_MS = 1000;
  * value in `lib/replay/renderer.ts` — changes. TICKET-9 (#9) freezes it into the
  * render manifest.
  */
-export const RENDERER_VERSION = 'replay-v0.1';
+export const RENDERER_VERSION = 'replay-v2.0';
 
 /** The constants above, as the data a render manifest freezes. */
 export const DEFAULT_TIMING: BeatTiming = {
@@ -120,4 +120,16 @@ export function laneAt(plan: BeatPlan, laneIndex: number, tMs: number): LaneMome
 /** The verdict has landed for the current beat — `hold` or later. */
 export function isSettled(moment: LaneMoment): boolean {
   return moment.phase === 'hold' || moment.phase === 'done';
+}
+
+/**
+ * Every lane's last verdict has landed — the race is decided. This is when the
+ * results may show: the rest (the final hold, an escapee's walk out, the outro)
+ * is only the scene settling, and the viewer should not wait through it.
+ */
+export function allVerdictsIn(plan: BeatPlan, moments: readonly LaneMoment[]): boolean {
+  return plan.beatCounts.every((count, i) => {
+    const m = moments[i];
+    return m !== undefined && (m.phase === 'done' || (m.beatIndex === count - 1 && isSettled(m)));
+  });
 }

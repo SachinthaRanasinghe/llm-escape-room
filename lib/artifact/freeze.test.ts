@@ -24,7 +24,7 @@ import { canonicalInput } from './testing';
 
 const BUMPED: RendererSnapshot = {
   ...CURRENT_RENDERER,
-  rendererVersion: 'replay-v0.2',
+  rendererVersion: 'replay-v2.1',
   timing: { ...CURRENT_RENDERER.timing, beatMs: 4000, laneOffsetMs: 0, walkFraction: 0.4 },
   camera: { ...CURRENT_RENDERER.camera, fov: 55, position: [0, 7, 8] },
   assets: { ...CURRENT_RENDERER.assets, laneColours: ['#ff0000', '#00ff00'] },
@@ -34,7 +34,7 @@ const BUMPED: RendererSnapshot = {
 /** The canonical run's published length. A literal, so it pins the pacing independently of any constant. */
 const PUBLISHED_TOTAL_MS = 79_500;
 
-async function underBumpedRenderer(supportedMajors: readonly number[] = [0]) {
+async function underBumpedRenderer(supportedMajors: readonly number[] = [2]) {
   vi.resetModules();
   vi.doMock('@/lib/replay/beats', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/lib/replay/beats')>()),
@@ -79,7 +79,7 @@ describe('a published run after a renderer bump', () => {
 
     expect(after).toEqual(before);
     expect(after.plan.totalMs).toBe(PUBLISHED_TOTAL_MS);
-    expect(after.renderer.rendererVersion).toBe('replay-v0.1');
+    expect(after.renderer.rendererVersion).toBe('replay-v2.0');
   });
 
   it('positive control: the swap really reached the live renderer', async () => {
@@ -91,10 +91,10 @@ describe('a published run after a renderer bump', () => {
   });
 
   it('a MAJOR bump refuses the old artifact rather than drawing it wrong', async () => {
-    const bumped = await underBumpedRenderer([1]);
+    const bumped = await underBumpedRenderer([3]);
     try {
       bumped.replayFromArtifact(bumped.loadArtifact('canonical'));
-      expect.unreachable('a renderer that cannot draw major 0 played a major-0 artifact');
+      expect.unreachable('a renderer that cannot draw major 2 played a major-2 artifact');
     } catch (error) {
       // Compared by name: `resetModules` gives the fresh import its own ArtifactError class.
       expect((error as Error).name).toBe(ArtifactError.name);

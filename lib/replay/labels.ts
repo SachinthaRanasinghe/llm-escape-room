@@ -98,6 +98,34 @@ export function describeAction(beat: ReplayBeat, layout: SceneLayout): string {
   }
 }
 
+/**
+ * The tool call itself, as the model sent it: `enter_code(wall-safe, "7777")`.
+ * Ids are the ones the model named — an unknown one included — and the code or
+ * answer is quoted verbatim. `null` for a turn with no usable call.
+ */
+export function describeCall(beat: ReplayBeat): string | null {
+  if (beat.verb === null) return null;
+  const target = beat.rawTargetId ?? '?';
+  const quoted = JSON.stringify(beat.argument ?? '');
+  switch (beat.verb) {
+    case 'look':
+      return 'look()';
+    case 'inspect':
+    case 'take':
+    case 'open':
+      return `${beat.verb}(${target})`;
+    case 'use':
+      return `use(${beat.heldItemId ?? '?'}, ${target})`;
+    case 'enter_code':
+    case 'submit_answer':
+      return `${beat.verb}(${target}, ${quoted})`;
+    default: {
+      const unreachable: never = beat.verb;
+      return unreachable;
+    }
+  }
+}
+
 /** How a finished lane is summed up. */
 export function describeEnd(lane: ReplayLane): string {
   if (lane.endedBecause === 'escaped') return `Escaped in ${lane.beats.length} actions`;
@@ -108,3 +136,81 @@ export function describeEnd(lane: ReplayLane): string {
 export function formatThink(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
 }
+
+/** The action in progress, for the HUD's "acts" step: `Inspecting sea chart`. */
+const DOING_LABEL: Readonly<Record<ActionName, string>> = {
+  look: 'Looking around the room',
+  inspect: 'Inspecting',
+  take: 'Taking',
+  open: 'Opening',
+  use: 'Using',
+  enter_code: 'Entering code',
+  submit_answer: 'Answering',
+};
+
+/** The action, finished, for the recent-activity list: `Opened desk`. */
+const DONE_LABEL: Readonly<Record<ActionName, string>> = {
+  look: 'Looked around',
+  inspect: 'Inspected',
+  take: 'Took',
+  open: 'Opened',
+  use: 'Used',
+  enter_code: 'Entered code',
+  submit_answer: 'Answered',
+};
+
+/** Why an action did not do what the model wanted, in two or three words. */
+const MISS_LABEL: Readonly<Record<Exclude<VerdictCode, 'ok'>, string>> = {
+  locked: 'locked',
+  wrong_answer: 'wrong answer',
+  wrong_code: 'wrong code',
+  wrong_key: 'wrong key',
+  not_found: 'not in the room',
+  not_holding: 'not holding it',
+  malformed: 'not understood',
+  not_permitted: 'not allowed',
+};
+
+function phrase(labels: Readonly<Record<ActionName, string>>, beat: ReplayBeat, layout: SceneLayout): string {
+  if (beat.verb === null) return beat.rejection ? capitalise(REJECTION_LABEL[beat.rejection]) : 'Did not act';
+  const target = nameOf(beat.targetId ?? beat.rawTargetId, layout);
+  switch (beat.verb) {
+    case 'look':
+      return labels.look;
+    case 'inspect':
+    case 'take':
+    case 'open':
+      return `${labels[beat.verb]} ${target}`;
+    case 'use':
+      return `${labels.use} ${nameOf(beat.heldItemId, layout)} on ${target}`;
+    case 'enter_code':
+      return `${labels.enter_code} ${beat.argument ?? ''} on ${target}`;
+    case 'submit_answer':
+      return `${labels.submit_answer} "${beat.argument ?? ''}" for ${target}`;
+    default: {
+      const unreachable: never = beat.verb;
+      return unreachable;
+    }
+  }
+}
+
+/** What the character is doing right now: `Entering code 7777 on wall safe`. */
+export function describeDoing(beat: ReplayBeat, layout: SceneLayout): string {
+  return phrase(DOING_LABEL, beat, layout);
+}
+
+/**
+ * One line of history: what it did, and — when the room said no — why, from the
+ * verdict code rather than the message: `Tried to open wall safe — locked`.
+ */
+export function describeOutcome(beat: ReplayBeat, layout: SceneLayout): string {
+  const { code } = beat.verdict;
+  if (beat.verb === null || code === 'ok') return phrase(DONE_LABEL, beat, layout);
+  const done = beat.verb === 'open' ? `Tried to open ${nameOf(beat.targetId ?? beat.rawTargetId, layout)}` : phrase(DONE_LABEL, beat, layout);
+  return `${done} — ${MISS_LABEL[code]}`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+

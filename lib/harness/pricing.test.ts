@@ -18,14 +18,20 @@ describe('costOf', () => {
     expect(costOf({ provider: 'groq', modelId: 'competitor-a' }, tokens)).toEqual({ usd: 0, priced: false });
   });
 
+  it("prices an OpenRouter :free model at zero by its suffix, and nothing else from OpenRouter", () => {
+    expect(costOf({ provider: 'openrouter', modelId: 'nvidia/nemotron-3-super-120b-a12b:free' }, tokens)).toEqual({ usd: 0, priced: true });
+    expect(costOf({ provider: 'openrouter', modelId: 'fireworks/ember-1' }, tokens)).toEqual({ usd: 0, priced: false });
+    expect(costOf({ provider: 'groq', modelId: 'something:free' }, tokens)).toEqual({ usd: 0, priced: false });
+  });
+
   it('charges per million tokens, prompt and completion separately', () => {
-    const table: PriceTable = { groq: { paid: { promptPerMTok: 0.5, completionPerMTok: 2 } }, gemini: {} };
+    const table: PriceTable = { groq: { paid: { promptPerMTok: 0.5, completionPerMTok: 2 } }, gemini: {}, openrouter: {} };
     // 20 000 × 0.5 / 1e6 + 600 × 2 / 1e6 = 0.01 + 0.0012
     expect(costOf({ provider: 'groq', modelId: 'paid' }, tokens, table)).toEqual({ usd: 0.0112, priced: true });
   });
 
   it('never goes negative and rounds away float noise', () => {
-    const table: PriceTable = { groq: { paid: { promptPerMTok: 0.1, completionPerMTok: 0.2 } }, gemini: {} };
+    const table: PriceTable = { groq: { paid: { promptPerMTok: 0.1, completionPerMTok: 0.2 } }, gemini: {}, openrouter: {} };
     const { usd } = costOf({ provider: 'groq', modelId: 'paid' }, { prompt: 3, completion: 3 }, table);
     expect(usd).toBeGreaterThanOrEqual(0);
     expect(String(usd).length).toBeLessThan(10);

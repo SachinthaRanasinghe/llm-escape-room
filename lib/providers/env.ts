@@ -22,7 +22,28 @@ import { ProviderError } from './types';
 export const PROVIDER_KEY_VARS: Readonly<Record<Provider, string>> = {
   groq: 'GROQ_API_KEY',
   gemini: 'GEMINI_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
 };
+
+/** Whether `name`'s key is set — for the race page's picker. Never returns the value. */
+export function hasProviderKey(
+  provider: Provider,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return (env[PROVIDER_KEY_VARS[provider]]?.trim() ?? '').length > 0;
+}
+
+/**
+ * Whether the local race page (`/race`, `/api/race`) may spend these keys.
+ *
+ * On under `next dev`. Off in a production build unless `ENABLE_LOCAL_RACE=1`,
+ * so deploying the public replay site can never expose an endpoint that runs
+ * models on the owner's keys for whoever finds it. Read here because this is the
+ * one file allowed to read the environment on the harness side.
+ */
+export function isLocalRaceEnabled(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return env.NODE_ENV !== 'production' || env.ENABLE_LOCAL_RACE?.trim() === '1';
+}
 
 export function readProviderKey(
   provider: Provider,

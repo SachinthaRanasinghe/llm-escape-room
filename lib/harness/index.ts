@@ -35,4 +35,4 @@ export { outcomeOf, isTypical } from './typicality';
 export type { Outcome } from './typicality';
 
 export { DEFAULT_BUDGET, DEFAULT_REPEATS } from './types';
-export type { DuelOptions, HarnessDeps } from './types';
+export type { DuelOptions, EventObserver, HarnessDeps } from './types';

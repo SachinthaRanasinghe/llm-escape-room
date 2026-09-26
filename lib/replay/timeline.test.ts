@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadCanonicalLog, loadCanonicalRoom, loadCanonicalRun } from '@/fixtures';
 import { buildSceneLayout } from './layout';
-import { buildReplay, ReplayError, type ReplayErrorReason } from './timeline';
+import { beatFromEvent, buildReplay, ReplayError, type ReplayErrorReason } from './timeline';
 import { event, layoutFixture, rejectedEvent, runFixture, TEST_RUN_ID } from './testing';
 
 const log = loadCanonicalLog();
@@ -147,5 +147,18 @@ describe('a broken log is refused, with a reason', () => {
 
   it('the fixtures use the shared test run id', () => {
     expect(event().runId).toBe(TEST_RUN_ID);
+  });
+});
+
+describe('beatFromEvent', () => {
+  it('builds, one event at a time, exactly the beats buildReplay builds from the whole log — what a live race streams', () => {
+    for (const lane of data.lanes) {
+      let cumulative = 0;
+      const live = log
+        .filter((e) => e.competitorId === lane.competitorId)
+        .sort((x, y) => x.seq - y.seq)
+        .map((e) => beatFromEvent(e, layout, (cumulative += e.latencyMs)));
+      expect(live).toEqual(lane.beats);
+    }
   });
 });

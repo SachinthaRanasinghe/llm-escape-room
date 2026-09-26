@@ -72,6 +72,37 @@ only the knobs in the table, re-run `pnpm test` (the band test fails if the tota
 in their render manifest and keep replaying exactly as they were published (`lib/replay/renderer.ts`). The intent
 typography is still CSS, not frozen data: if spike 3 retunes it, move those sizes into the renderer snapshot first.
 
+**2026-09-26 — `replay-v1.0` (major):** the scene and chrome were redrawn — a panelled room with a doorway cut
+for the exit, detailed props, a jointed character with a visor and a walk cycle, soft shadows, and new
+colours, walls (2.6) and camera in the snapshot. Beat timing and intent sizes did not change. Mesh changes are
+code, so this is a major bump: `SUPPORTED_RENDERER_MAJORS` is `[1]`, and `published/canonical.json` was
+re-frozen with `scripts/publish.mts --canonical --force`. Only its render manifest changed.
+
+**2026-09-26 — in-world HUD (chrome only, no version bump):** the panels under the rooms are gone. Each lane is
+now its room, and `components/scene/LaneHud.tsx` lays a HUD over it. The current turn is one card, pinned beside
+the object being acted on with a leader line (`anchor.tsx` projects the target through the lane's camera). It
+reads as three steps: the model **decides** (the intent, verbatim), **acts** (a plain-words action plus the
+tool call), and the **room responds** (the verdict message, verbatim). Finished turns become one line each in
+"Recent activity". The model's identity sits at a top corner and a labelled stats rail runs along the bottom.
+The intent is still never truncated: the card wraps and grows. Nothing in the scene, the timing or the snapshot
+changed, so published runs are unaffected.
+
+**2026-09-26 — `replay-v2.0` (major): cinematic pass.** The room is lit like a set rather than evenly. The pendant is
+a soft shadow-casting spot, making a warm pool that falls off into darker corners, with a faint haze cone. The sconces
+wash the back wall. Baked gradients darken where walls meet the floor. The floor is varnished (clearcoat), the
+wainscot is panelled, and the wallpaper darkens toward the ceiling. The canvas tone-maps with AgX (exposure 1.3)
+instead of ACES, so warm highlights roll off instead of flattening to orange. The camera does an establishing sweep
+over the intro, drifts slowly, and leans toward its character (`FOLLOW` in `RoomScene.tsx`). It is still a pure
+function of the clock, and it holds the snapshot framing under reduced motion. The characters have clearcoat shells,
+a glass visor, blinking eyes that narrow on a success and dim on a failure or when out of actions, a chest core that
+quickens while acting, hip sway, a trailing antenna and a lane-coloured glow light. Props use wood-grain and
+polished-steel materials. An open door throws a light shaft and lights the room. Each verdict sends a shockwave
+across the floor in its tone, and a success throws sparks (`VerdictBurst`). A CSS vignette sits over each lane,
+below the HUD. The snapshot's camera (4.5 / 5.6 high/back, fov 44, sway 0.3 over 25 s) and floor, wall and
+background colours changed too. Beat timing and intent sizes did not. `SUPPORTED_RENDERER_MAJORS` is `[2]`, and
+`published/canonical.json` was re-frozen. Only its render manifest changed. None of the new decor is nameable:
+light, haze and trim only.
+
 ## Consequences
 
 - **280-character intents don't fully read in one beat.** The schema allows them, but the canonical log never goes

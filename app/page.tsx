@@ -5,8 +5,9 @@ import styles from './home.module.css';
  * The landing page. The real entry point is a published run at `/run/[id]`
  * (TICKET-9, #9), which plays an artifact frozen by `scripts/publish.mts`.
  * `/replay` (TICKET-8, #5) is the live preview of the current renderer over the
- * golden fixture log. `/race` races two free models picked in the browser, under
- * `next dev` only.
+ * golden fixture log. `/race` races two free models picked in the browser — under
+ * `next dev`, or on the hosted site when it is opened to the public
+ * (`docs/decisions/public-race.md`).
  */
 
 const STEPS = [
@@ -66,7 +67,7 @@ export default function Page() {
           </Link>
           <Link href="/race" className={styles.secondary}>
             Race two models
-            <span className={styles.tag}>local</span>
+            <span className={styles.tag}>live</span>
           </Link>
         </div>
 
@@ -97,7 +98,7 @@ export default function Page() {
 
       <footer className={styles.footer}>
         <span>
-          Racing runs locally on the keys in your <code>.env</code>. Published runs are frozen and play with no backend.
+          Races call free models live, on the server. Published runs are frozen and play with no backend.
         </span>
         <Link href="/replay">Live renderer preview →</Link>
       </footer>

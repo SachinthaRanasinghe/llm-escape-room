@@ -50,3 +50,6 @@ venv/
 
 # Local launch videos made with /brag (large, not source)
 /brag-output*/
+
+# Local Netlify folder
+.netlify

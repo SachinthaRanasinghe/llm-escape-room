@@ -63,7 +63,7 @@ export { createGeminiAdapter } from './gemini';
 export { createOpenRouterAdapter } from './openrouter';
 export { listModels, CATALOGUE_EXCLUSIONS, PAID_MODELS } from './catalogue';
 export type { CatalogueExclusion, CatalogueListing, CatalogueModel, ExcludedModel, ModelPrice } from './catalogue';
-export { hasProviderKey, isLocalRaceEnabled, readProviderKey, PROVIDER_KEY_VARS } from './env';
+export { hasProviderKey, isLocalRaceEnabled, isPublicRaceEnabled, readProviderKey, PROVIDER_KEY_VARS } from './env';
 export { buildPortableSpec } from './vocabulary';
 export type { PortableSpec, PortableTool, PortableParam } from './vocabulary';
 export { findSpecDrift } from './equivalence';

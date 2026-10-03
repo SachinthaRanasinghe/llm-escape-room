@@ -107,3 +107,9 @@ anyway, without an Anthropic API key.
   Claude run from `scripts/run.mts` is reported unpriced, as any unknown model is.
 - **Never the default, always labelled.** The picker puts Claude in its own "paid" group with its price, never
   picks it by default, and shows what a paid pick costs and that each silent repeat is another full race of calls.
+
+## Amendment: open to the public on the hosted site (2026-10-03)
+
+"Local only" is now the default rather than the rule. With `PUBLIC_RACE=1` the deployed site offers `/race` to
+every visitor — free models only, rate-limited, run in a Netlify background function and followed by polling, with
+the keys still read only on the server. See `public-race.md`.

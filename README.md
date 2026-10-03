@@ -129,6 +129,12 @@ set. The page and its API routes exist only under `next dev`. A production build
 `ENABLE_LOCAL_RACE=1`, so the public replay site never spends your keys (`docs/decisions/local-race.md`). From
 the terminal, `scripts/run.mts --a <provider>:<model> --b <provider>:<model>` takes the same provider names.
 
+**Race on the hosted site.** With `PUBLIC_RACE=1` and the provider keys set as Netlify environment variables, `/race`
+is open to every visitor on the deployed site: free models only, at most one silent repeat, one race at a time,
+3 races per visitor an hour and 40 a day. The race runs in a Netlify background function
+(`netlify/functions/race-background.mts`) and the page follows it by polling, because a streamed response is cut off
+after 60 seconds. Keys stay on the server; nothing is saved. See `docs/decisions/public-race.md`.
+
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate
 actually separates two models. Expect exactly one migration.

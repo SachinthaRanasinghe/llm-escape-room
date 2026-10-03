@@ -71,7 +71,7 @@ const ENDPOINT = /api\.groq\.com|generativelanguage\.googleapis\.com|openrouter\
 const KEY_SHAPED = [/\bgsk_[A-Za-z0-9]{20,}/, /\bAIza[0-9A-Za-z_-]{30,}/, /\bAQ\.[0-9A-Za-z_-]{30,}/, /\bsk-or-v1-[0-9a-f]{20,}/];
 
 /** Any import of the race module; `lib/race/wire` is matched separately. */
-const RACE_IMPORT = /from\s+['"](@\/lib\/race|(\.\.\/)+race)(\/index)?['"]/;
+const RACE_IMPORT = /from\s+['"](@\/lib\/race|(\.\.\/)+race)(\/index|\/hosted)?['"]/;
 /** Who may hold the race module: the server page that gates `/race`, and the route handlers. */
 const RACE_HOLDERS = /^app\/(race\/page\.tsx|api\/)/;
 
@@ -249,6 +249,7 @@ describe('the positive control', () => {
     expect(KEY_SHAPED[2]!.test(`{"k":"AQ.${'Ab8_-'.repeat(8)}"}`)).toBe(true);
     expect(KEY_SHAPED[3]!.test(`{"k":"sk-or-v1-${'0f'.repeat(32)}"}`)).toBe(true);
     expect(RACE_IMPORT.test(`import { runRace } from '@/lib/race';`)).toBe(true);
+    expect(RACE_IMPORT.test(`import { startHostedRace } from '@/lib/race/hosted';`)).toBe(true);
     expect(RACE_IMPORT.test(`import type { RaceMessage } from '@/lib/race/wire';`)).toBe(false);
     expect(RACE_HOLDERS.test('app/api/race/route.ts')).toBe(true);
     expect(RACE_HOLDERS.test('components/race/RaceLab.tsx')).toBe(false);

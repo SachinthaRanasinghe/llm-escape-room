@@ -4,11 +4,23 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { LivePlayer } from '@/components/scene/LivePlayer';
 import { ReplayPlayer } from '@/components/scene/ReplayPlayer';
-import type { CatalogueEntry, CatalogueResponse, ModelPick, ProviderCatalogue, RaceMessage, RacePhase } from '@/lib/race/wire';
+import type {
+  CatalogueEntry,
+  CatalogueResponse,
+  HostedRacePoll,
+  HostedRaceStarted,
+  ModelPick,
+  ProviderCatalogue,
+  RaceMessage,
+  RacePhase,
+} from '@/lib/race/wire';
 import type { ReplayBeat, ReplayData } from '@/lib/replay';
 import type { ComparisonData } from '@/lib/comparison';
 import type { EndReason } from '@/lib/schema/run';
 import styles from './race.module.css';
+
+/** How often the hosted page asks for new messages. Beats that arrive together play at the live player's catch-up pace. */
+const POLL_MS = 1000;
 
 /**
  * The local race page — pick any two models and watch them race, live. Free
@@ -188,6 +200,53 @@ export function RaceLab() {
       setNow(Date.now());
       setStage({ kind: 'running', progress });
 
+      // One handler for both transports: the local NDJSON stream and the hosted poll.
+      let finished = false;
+      const handle = (message: RaceMessage) => {
+        switch (message.type) {
+          case 'started':
+            progress = { ...progress, started: message };
+            updateLive({ started: message, beats: {}, ended: {}, over: false, result: null });
+            break;
+          case 'phase':
+            progress = { ...progress, phase: message.phase, actions: {} };
+            if (message.phase.kind === 'repeat' && current !== null) updateLive({ ...current, over: true });
+            break;
+          case 'beat':
+            if (current !== null) {
+              const { competitorId, beat, ended } = message;
+              updateLive({
+                ...current,
+                beats: { ...current.beats, [competitorId]: [...(current.beats[competitorId] ?? []), beat] },
+                ended: { ...current.ended, [competitorId]: ended },
+              });
+            }
+            return;
+          case 'result':
+            if (current !== null) updateLive({ ...current, over: true, result: message.comparison });
+            return;
+          case 'action':
+            progress = { ...progress, actions: { ...progress.actions, [message.competitorId]: message.actions } };
+            break;
+          case 'dropped':
+            progress = { ...progress, dropped: progress.dropped + 1 };
+            break;
+          case 'done':
+            finished = true;
+            setStage({ kind: 'done', result: message, replaying: false });
+            return;
+          case 'error':
+            finished = true;
+            if (message.comparison !== null && current !== null) {
+              setStage({ kind: 'stopped', message: message.message, savedTo: message.savedTo, comparison: message.comparison });
+            } else {
+              setStage({ kind: 'error', message: message.message, savedTo: message.savedTo });
+            }
+            return;
+        }
+        setStage({ kind: 'running', progress });
+      };
+
       try {
         const response = await fetch('/api/race', {
           method: 'POST',
@@ -201,62 +260,48 @@ export function RaceLab() {
           return;
         }
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let finished = false;
-        for (;;) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let newline: number;
-          while ((newline = buffer.indexOf('\n')) >= 0) {
-            const line = buffer.slice(0, newline).trim();
-            buffer = buffer.slice(newline + 1);
-            if (line.length === 0) continue;
-            const message = JSON.parse(line) as RaceMessage;
-            switch (message.type) {
-              case 'started':
-                progress = { ...progress, started: message };
-                updateLive({ started: message, beats: {}, ended: {}, over: false, result: null });
-                break;
-              case 'phase':
-                progress = { ...progress, phase: message.phase, actions: {} };
-                if (message.phase.kind === 'repeat' && current !== null) updateLive({ ...current, over: true });
-                break;
-              case 'beat':
-                if (current !== null) {
-                  const { competitorId, beat, ended } = message;
-                  updateLive({
-                    ...current,
-                    beats: { ...current.beats, [competitorId]: [...(current.beats[competitorId] ?? []), beat] },
-                    ended: { ...current.ended, [competitorId]: ended },
-                  });
-                }
-                continue;
-              case 'result':
-                if (current !== null) updateLive({ ...current, over: true, result: message.comparison });
-                continue;
-              case 'action':
-                progress = { ...progress, actions: { ...progress.actions, [message.competitorId]: message.actions } };
-                break;
-              case 'dropped':
-                progress = { ...progress, dropped: progress.dropped + 1 };
-                break;
-              case 'done':
-                finished = true;
-                setStage({ kind: 'done', result: message, replaying: false });
-                continue;
-              case 'error':
-                finished = true;
-                if (message.comparison !== null && current !== null) {
-                  setStage({ kind: 'stopped', message: message.message, savedTo: message.savedTo, comparison: message.comparison });
-                } else {
-                  setStage({ kind: 'error', message: message.message, savedTo: message.savedTo });
-                }
-                continue;
+        if (response.status === 202) {
+          // The hosted site: the race runs in the background; follow it by polling.
+          const { raceId } = (await response.json()) as HostedRaceStarted;
+          abort.signal.addEventListener('abort', () => {
+            void fetch(`/api/race/${raceId}/cancel`, { method: 'POST', keepalive: true }).catch(() => {});
+          });
+          let next = 0;
+          let misses = 0;
+          while (!finished) {
+            await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+            if (abort.signal.aborted) throw new DOMException('cancelled', 'AbortError');
+            const poll = await fetch(`/api/race/${raceId}?from=${next}`, { cache: 'no-store', signal: abort.signal }).catch((error: unknown) => {
+              if (abort.signal.aborted) throw error;
+              return null;
+            });
+            if (poll === null || !poll.ok) {
+              // A dropped poll is retried; a minute of them is a lost race.
+              misses += 1;
+              if (misses * POLL_MS > 60_000) break;
+              continue;
             }
-            setStage({ kind: 'running', progress });
+            misses = 0;
+            const body = (await poll.json()) as HostedRacePoll;
+            for (const message of body.messages) handle(message);
+            next = body.next;
+            if (body.finished) break;
+          }
+        } else {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let newline: number;
+            while ((newline = buffer.indexOf('\n')) >= 0) {
+              const line = buffer.slice(0, newline).trim();
+              buffer = buffer.slice(newline + 1);
+              if (line.length === 0) continue;
+              handle(JSON.parse(line) as RaceMessage);
+            }
           }
         }
         if (!finished) setStage({ kind: 'error', message: 'The connection closed before the race finished.', savedTo: null });
@@ -348,12 +393,19 @@ export function RaceLab() {
           </Link>
         </nav>
         <header className={styles.header}>
-          <p className={styles.eyebrow}>Local race</p>
+          <p className={styles.eyebrow}>{catalogue?.hosted ? 'Live race' : 'Local race'}</p>
           <h1 className={styles.title}>Race two models</h1>
-          <p className={styles.lede}>
-            Pick any two models — free ones, or Claude on a paid OpenRouter key. They race the same room with the same
-            tools, and you watch them play it live in 3D as each model decides. A race makes live calls on the keys in your <code>.env</code> and takes a few minutes.
-          </p>
+          {catalogue?.hosted ? (
+            <p className={styles.lede}>
+              Pick any two free models. They race the same room with the same tools, and you watch them play it live in 3D
+              as each model decides. A race takes a few minutes.
+            </p>
+          ) : (
+            <p className={styles.lede}>
+              Pick any two models — free ones, or Claude on a paid OpenRouter key. They race the same room with the same
+              tools, and you watch them play it live in 3D as each model decides. A race makes live calls on the keys in your <code>.env</code> and takes a few minutes.
+            </p>
+          )}
         </header>
 
         {stage.kind === 'loading' && <p className={styles.status}>Loading the model list from each provider…</p>}
@@ -400,9 +452,17 @@ export function RaceLab() {
               </label>
             </div>
             <p className={styles.hint}>
-              Repeats replay the same room out of sight so the result can say whether this run was typical. Each one costs
-              another full race of calls, and free OpenRouter keys allow 50 requests a day.
+              Repeats replay the same room out of sight so the result can say whether this run was typical.{' '}
+              {catalogue.hosted
+                ? 'Each one is another full race of calls on the free quota this site shares.'
+                : 'Each one costs another full race of calls, and free OpenRouter keys allow 50 requests a day.'}
             </p>
+            {catalogue.hosted && (
+              <p className={styles.hint} data-testid="public-limits">
+                This site runs one race at a time, a few per visitor each hour, and a fixed number a day, so the free quota
+                lasts. Races here are watched, not saved.
+              </p>
+            )}
 
             <PaidNote picks={[pickA, pickB]} repeats={repeats} providers={catalogue.providers} />
 
@@ -430,7 +490,7 @@ export function RaceLab() {
               </button>
             </div>
 
-            <ProviderNotes providers={catalogue.providers} />
+            <ProviderNotes providers={catalogue.providers} hosted={catalogue.hosted} />
           </form>
         )}
 
@@ -553,7 +613,7 @@ function PaidNote({ picks, repeats, providers }: { picks: readonly string[]; rep
   );
 }
 
-function ProviderNotes({ providers }: { providers: readonly ProviderCatalogue[] }) {
+function ProviderNotes({ providers, hosted }: { providers: readonly ProviderCatalogue[]; hosted: boolean }) {
   const missing = providers.filter((p) => !p.keySet);
   const failed = providers.filter((p) => p.error !== null);
   const excluded = providers.flatMap((p) => p.excluded.map((e) => ({ ...e, provider: p.name })));
@@ -570,7 +630,7 @@ function ProviderNotes({ providers }: { providers: readonly ProviderCatalogue[] 
           .join(', ') || 'no provider yet'}
         . Only models that can be forced to make a tool call are offered, so every model plays by the same rules.
       </p>
-      {missing.map((p) => (
+      {!hosted && missing.map((p) => (
         <p key={p.provider} className={styles.hint}>
           <strong>{p.name}</strong>: add <code>{p.keyVar}=…</code> to <code>.env</code> and restart <code>pnpm dev</code>
           {p.models.length > 0 && <> to unlock {p.models.length} more models</>}.
@@ -612,14 +672,23 @@ function SavedBar({
   return (
     <div className={styles.savedBar} data-testid="race-saved">
       <span>
-        Saved to <code>{result.savedTo}</code> · {result.providerCalls} provider calls
+        {result.savedTo !== null ? (
+          <>
+            Saved to <code>{result.savedTo}</code> ·{' '}
+          </>
+        ) : (
+          <>Race finished · </>
+        )}
+        {result.providerCalls} provider calls
         {result.unpriced.length > 0 && <> · no price on file for {result.unpriced.join(', ')} (shown as $0)</>}
       </span>
-      <details className={styles.publish}>
-        <summary>Publish this run</summary>
-        <p>Publishing freezes it at a shareable <code>/run/&lt;id&gt;</code> URL after the next build:</p>
-        <code className={styles.command}>{result.publishCommand}</code>
-      </details>
+      {result.publishCommand !== null && (
+        <details className={styles.publish}>
+          <summary>Publish this run</summary>
+          <p>Publishing freezes it at a shareable <code>/run/&lt;id&gt;</code> URL after the next build:</p>
+          <code className={styles.command}>{result.publishCommand}</code>
+        </details>
+      )}
       {onReplay && (
         <button type="button" className={styles.secondary} onClick={onReplay} data-testid="race-replay">
           Watch the replay

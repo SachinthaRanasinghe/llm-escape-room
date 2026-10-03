@@ -12,6 +12,7 @@ import {
   createAdapter,
   hasProviderKey,
   isLocalRaceEnabled,
+  isPublicRaceEnabled,
   listModels,
   readProviderKey,
   type ProviderAdapter,
@@ -58,6 +59,8 @@ import type { CatalogueEntry, CatalogueResponse, ModelPick, ProviderCatalogue, R
 export const MAX_REPEATS = 3;
 /** One silent repeat, not the CLI's three: a free OpenRouter key allows 50 requests a day. */
 export const DEFAULT_RACE_REPEATS = 1;
+/** On the public site every repeat is the owner's quota spent by a stranger: one at most. */
+export const PUBLIC_MAX_REPEATS = 1;
 
 const PROVIDER_NAMES: Readonly<Record<Provider, string>> = {
   groq: 'Groq',
@@ -76,6 +79,20 @@ export class RaceError extends Error {
 
 export function raceEnabled(): boolean {
   return isLocalRaceEnabled();
+}
+
+/**
+ * Whether this deployment is the public, hosted race (`PUBLIC_RACE=1`): free
+ * models only, at most one repeat, rate-limited, run in a background function
+ * (`lib/race/hosted.ts`) and never written to disk.
+ */
+export function publicRace(): boolean {
+  return isPublicRaceEnabled();
+}
+
+/** The public site races free models only — a stranger never spends the owner's credit. */
+function forPublic(provider: ProviderCatalogue): ProviderCatalogue {
+  return { ...provider, models: provider.models.filter((m) => m.price === null) };
 }
 
 /* ── Catalogue ──────────────────────────────────────────────────────────── */
@@ -111,11 +128,16 @@ async function providerCatalogues(now: number, refresh: boolean): Promise<readon
 }
 
 export async function getCatalogue(options: { refresh?: boolean } = {}): Promise<CatalogueResponse> {
+  const hosted = publicRace();
+  // A visitor cannot force a fresh listing on the public site: each one is a provider call on the owner's key.
+  const providers = await providerCatalogues(Date.now(), hosted ? false : (options.refresh ?? false));
   return {
-    providers: await providerCatalogues(Date.now(), options.refresh ?? false),
+    // On the public site a provider without a key is simply not offered — there is no .env to point a visitor at.
+    providers: hosted ? providers.filter((p) => p.keySet).map(forPublic) : providers,
     rooms: listRooms().map(({ id, label }) => ({ id, label })),
-    maxRepeats: MAX_REPEATS,
-    defaultRepeats: DEFAULT_RACE_REPEATS,
+    maxRepeats: hosted ? PUBLIC_MAX_REPEATS : MAX_REPEATS,
+    defaultRepeats: hosted ? Math.min(DEFAULT_RACE_REPEATS, PUBLIC_MAX_REPEATS) : DEFAULT_RACE_REPEATS,
+    hosted,
   };
 }
 
@@ -249,10 +271,32 @@ export function pricesFor(picks: readonly ModelPickPriced[]): PriceTable {
  * enabled, not already running, a certified room, both picks in the
  * catalogue with their key set. Throws `RaceError` with the HTTP status to send.
  * On success the lock is TAKEN — `runRace` releases it.
+ *
+ * The public site does not use this in-memory lock (each request may land on a
+ * different function instance); `lib/race/hosted.ts` holds a shared one and
+ * calls `checkRace` directly.
  */
 export async function prepareRace(request: RaceRequest): Promise<PreparedRace> {
   if (!raceEnabled()) throw new RaceError(404, 'the local race page is disabled in this build');
   if (running) throw new RaceError(409, 'a race is already running — wait for it to finish');
+  const prepared = await checkRace(request);
+  if (running) throw new RaceError(409, 'a race is already running — wait for it to finish');
+  running = true;
+  return prepared;
+}
+
+/**
+ * The checks of `prepareRace` without the lock. On the public site it also
+ * refuses a paid model and more than `PUBLIC_MAX_REPEATS` repeats, whatever the
+ * request says — the page never offers them, and a hand-made request is held to
+ * the same rules.
+ */
+export async function checkRace(request: RaceRequest): Promise<PreparedRace> {
+  if (!raceEnabled()) throw new RaceError(404, 'the race is disabled in this build');
+  const hosted = publicRace();
+  if (hosted && request.repeats > PUBLIC_MAX_REPEATS) {
+    throw new RaceError(400, `the public race allows at most ${PUBLIC_MAX_REPEATS} silent repeat`);
+  }
 
   const room = listRooms().find((r) => r.id === request.roomId);
   if (room === undefined) throw new RaceError(400, `unknown room ${request.roomId}`);
@@ -263,14 +307,15 @@ export async function prepareRace(request: RaceRequest): Promise<PreparedRace> {
   const catalogue = await providerCatalogues(Date.now(), false);
   const priced = [request.a, request.b].map((pick) => {
     const provider = catalogue.find((p) => p.provider === pick.provider)!;
-    if (!provider.keySet) throw new RaceError(400, `${provider.keyVar} is not set in .env`);
+    if (!provider.keySet) {
+      throw new RaceError(400, hosted ? `${provider.name} is not available on this site` : `${provider.keyVar} is not set in .env`);
+    }
     const entry = provider.models.find((m) => m.modelId === pick.modelId);
     if (entry === undefined) throw new RaceError(400, `${pick.provider}:${pick.modelId} is not in the catalogue`);
+    if (hosted && entry.price !== null) throw new RaceError(400, `${pick.provider}:${pick.modelId} is a paid model — the public race offers free models only`);
     return { ...pick, price: entry.price };
   });
 
-  if (running) throw new RaceError(409, 'a race is already running — wait for it to finish');
-  running = true;
   return { request, room, prices: pricesFor(priced) };
 }
 
@@ -283,6 +328,8 @@ export async function runRace(
   { request, room, prices }: PreparedRace,
   emit: (message: RaceMessage) => void,
   signal: AbortSignal,
+  /** `false` on the hosted site: a function's disk is read-only and gone after the call, so nothing is written. */
+  { persist = true }: { readonly persist?: boolean } = {},
 ): Promise<void> {
   let savedTo: string | null = null;
   try {
@@ -297,7 +344,7 @@ export async function runRace(
 
     const runId = slug(`race-${room.id}-${new Date().toISOString().replace(/[:.]/g, '-')}`);
     const dir = join(process.cwd(), 'runs', runId);
-    savedTo = relative(process.cwd(), dir);
+    savedTo = persist ? relative(process.cwd(), dir) : null;
 
     const layout = buildSceneLayout(room.spec);
     emit({
@@ -371,7 +418,7 @@ export async function runRace(
       });
     } catch (error) {
       if (error instanceof DuelAbortedError) {
-        write(join(dir, 'events.partial.json'), error.events);
+        if (persist) write(join(dir, 'events.partial.json'), error.events);
         const cancelled = signal.aborted;
         emit({
           type: 'error',
@@ -388,18 +435,20 @@ export async function runRace(
       return;
     }
 
-    write(join(dir, 'run.json'), result.hero.run);
-    write(join(dir, 'events.json'), result.hero.events);
-    for (const repeat of result.repeats) {
-      write(join(dir, 'repeats', `${repeat.run.runId}.run.json`), repeat.run);
-      write(join(dir, 'repeats', `${repeat.run.runId}.events.json`), repeat.events);
+    if (persist) {
+      write(join(dir, 'run.json'), result.hero.run);
+      write(join(dir, 'events.json'), result.hero.events);
+      for (const repeat of result.repeats) {
+        write(join(dir, 'repeats', `${repeat.run.runId}.run.json`), repeat.run);
+        write(join(dir, 'repeats', `${repeat.run.runId}.events.json`), repeat.events);
+      }
+      write(join(dir, 'matchup.json'), {
+        heroRunId: result.hero.run.runId,
+        repeatRunIds: result.repeats.map((r) => r.run.runId),
+        dropped: result.dropped,
+        providerCalls: result.providerCalls,
+      });
     }
-    write(join(dir, 'matchup.json'), {
-      heroRunId: result.hero.run.runId,
-      repeatRunIds: result.repeats.map((r) => r.run.runId),
-      dropped: result.dropped,
-      providerCalls: result.providerCalls,
-    });
 
     const artifact = buildArtifact({
       id: slug(runId),
@@ -417,7 +466,7 @@ export async function runRace(
       type: 'done',
       runId,
       savedTo,
-      publishCommand: `node --import tsx scripts/publish.mts --run ${savedTo} --room ${room.path}`,
+      publishCommand: savedTo === null ? null : `node --import tsx scripts/publish.mts --run ${savedTo} --room ${room.path}`,
       data,
       renderer,
       comparison: comparisonFromArtifact(artifact),
@@ -447,7 +496,7 @@ function stoppedComparison(
   error: DuelAbortedError,
   spec: RoomSpec,
   competitors: readonly Competitor[],
-  savedTo: string,
+  savedTo: string | null,
   prices: PriceTable,
 ): ComparisonData {
   const cause = error.cause instanceof CompetitorAbortedError ? error.cause : null;

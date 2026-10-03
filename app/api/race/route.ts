@@ -1,5 +1,6 @@
-import { parseRaceRequest, prepareRace, raceEnabled, RaceError, runRace } from '@/lib/race';
-import type { RaceMessage } from '@/lib/race/wire';
+import { parseRaceRequest, prepareRace, publicRace, raceEnabled, RaceError, runRace } from '@/lib/race';
+import { netlifyKv, startHostedRace, visitorAddress } from '@/lib/race/hosted';
+import type { HostedRaceStarted, RaceMessage } from '@/lib/race/wire';
 
 /**
  * `POST /api/race` — race two models from the free catalogue and stream it.
@@ -12,10 +13,16 @@ import type { RaceMessage } from '@/lib/race/wire';
  *
  * Closing the connection cancels the race: the next model call is refused, the
  * duel aborts, and nothing is saved as finished.
+ *
+ * On the public site (`PUBLIC_RACE=1`) a function cannot stream for minutes, so
+ * the race is queued instead: the answer is `202 { raceId }`, the race runs in
+ * the background function, and the page follows it at `GET /api/race/<raceId>`
+ * (`lib/race/hosted.ts`).
  */
 export async function POST(request: Request): Promise<Response> {
   // Before the body is read: a disabled build does not admit the route exists.
   if (!raceEnabled()) return new Response('Not found', { status: 404 });
+  if (publicRace()) return startPublic(request);
   let prepared;
   try {
     prepared = await prepareRace(parseRaceRequest(await request.json().catch(() => null)));
@@ -53,4 +60,27 @@ export async function POST(request: Request): Promise<Response> {
   return new Response(stream, {
     headers: { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' },
   });
+}
+
+async function startPublic(request: Request): Promise<Response> {
+  try {
+    const race = parseRaceRequest(await request.json().catch(() => null));
+    const raceId = await startHostedRace(race, {
+      kv: netlifyKv(),
+      address: visitorAddress(request.headers),
+      kick: async (id) => {
+        // A background function answers 202 at once and keeps running for up to 15 minutes.
+        const response = await fetch(new URL('/.netlify/functions/race-background', request.url), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ raceId: id }),
+        });
+        if (response.status !== 202 && !response.ok) throw new Error(`background function answered ${response.status}`);
+      },
+    });
+    return Response.json({ raceId } satisfies HostedRaceStarted, { status: 202, headers: { 'cache-control': 'no-store' } });
+  } catch (error) {
+    if (error instanceof RaceError) return Response.json({ error: error.message }, { status: error.status });
+    return Response.json({ error: 'the race could not be started' }, { status: 500 });
+  }
 }

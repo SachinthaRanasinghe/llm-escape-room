@@ -36,8 +36,8 @@ export interface StoppedInput {
   readonly failedCompetitorId: string | null;
   /** The provider's HTTP status, when it sent one. */
   readonly status: number | null;
-  /** Where the partial log was written, relative to the repo root. */
-  readonly savedTo: string;
+  /** Where the partial log was written, relative to the repo root. `null` on the hosted site, which keeps no files. */
+  readonly savedTo: string | null;
 }
 
 const NUMBER = new Intl.NumberFormat('en-US');
@@ -110,7 +110,7 @@ export function buildStoppedComparison({
       title: 'Not a finished race',
       body:
         `${cause} A provider error says nothing about either model, so this race has no winner and cannot be ` +
-        `published. The moves so far are saved in ${savedTo}.${advice}`,
+        `published.${savedTo === null ? '' : ` The moves so far are saved in ${savedTo}.`}${advice}`,
     },
     limitation: LIMITATION,
     escapeTimeNote: ESCAPE_TIME_NOTE,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLocalRaceEnabled } from '@/lib/providers/env';
+import { isLocalRaceEnabled, isPublicRaceEnabled } from '@/lib/providers/env';
 import { costOf, PRICING } from '@/lib/harness';
 import { MAX_REPEATS, parseRaceRequest, pricesFor, RaceError } from './index';
 
@@ -81,5 +81,17 @@ describe('isLocalRaceEnabled', () => {
   it('can be switched on for a production server only on purpose', () => {
     expect(isLocalRaceEnabled({ NODE_ENV: 'production', ENABLE_LOCAL_RACE: '1' })).toBe(true);
     expect(isLocalRaceEnabled({ NODE_ENV: 'production', ENABLE_LOCAL_RACE: 'yes' })).toBe(false);
+  });
+});
+
+describe('isPublicRaceEnabled', () => {
+  it('is off unless the hosted site opts in with PUBLIC_RACE=1', () => {
+    expect(isPublicRaceEnabled({ NODE_ENV: 'production' })).toBe(false);
+    expect(isPublicRaceEnabled({ NODE_ENV: 'production', PUBLIC_RACE: 'true' })).toBe(false);
+    expect(isPublicRaceEnabled({ NODE_ENV: 'production', PUBLIC_RACE: '1' })).toBe(true);
+  });
+
+  it('turns the race on in a production build', () => {
+    expect(isLocalRaceEnabled({ NODE_ENV: 'production', PUBLIC_RACE: '1' })).toBe(true);
   });
 });

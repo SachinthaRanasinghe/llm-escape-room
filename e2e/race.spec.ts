@@ -47,6 +47,7 @@ const CATALOGUE: CatalogueResponse = {
   rooms: [{ id: 'canonical-study', label: "The Cartographer's Study (fixture)" }],
   maxRepeats: 3,
   defaultRepeats: 1,
+  hosted: false,
 };
 
 const artifact = loadArtifact('canonical');
@@ -368,4 +369,53 @@ test('keeps the 3D race on screen when a provider stops it, and shows the result
 
   await page.getByTestId('race-again').click();
   await expect(page.getByTestId('race-form')).toBeVisible();
+});
+
+test('on the hosted site, queues the race, follows it by polling, and offers nothing to save', async ({ page }) => {
+  const hosted: CatalogueResponse = {
+    ...CATALOGUE,
+    providers: CATALOGUE.providers.filter((p) => p.keySet),
+    maxRepeats: 1,
+    hosted: true,
+  };
+  await page.route('**/api/models**', (route) => route.fulfill({ json: hosted }));
+  const raceId = '0b6f2f0e-6c7e-4c1a-9a51-3f1a0f3c2d11';
+  await page.route('**/api/race', (route) => route.fulfill({ status: 202, json: { raceId } }));
+  const messages: RaceMessage[] = [
+    STARTED,
+    { type: 'phase', phase: { kind: 'hero' } },
+    ...beats(),
+    {
+      type: 'done',
+      runId: 'race-test',
+      savedTo: null,
+      publishCommand: null,
+      data,
+      renderer,
+      comparison: comparisonFromArtifact(artifact),
+      providerCalls: 28,
+      unpriced: [],
+    },
+  ];
+  const asked: number[] = [];
+  await page.route(new RegExp(`/api/race/${raceId}\\?from=`), (route) => {
+    const from = Number(new URL(route.request().url()).searchParams.get('from'));
+    asked.push(from);
+    // Half the messages on the first poll, the rest on the next: the page must carry on from `next`.
+    const half = Math.ceil(messages.length / 2);
+    const slice = from === 0 ? messages.slice(0, half) : messages.slice(from);
+    return route.fulfill({ json: { messages: slice, next: from + slice.length, finished: from + slice.length === messages.length } });
+  });
+
+  await page.goto('/race');
+  await expect(page.getByTestId('public-limits')).toBeVisible();
+  await expect(page.getByTestId('provider-notes')).not.toContainText('.env');
+  await expect(page.getByTestId('repeats-select').locator('option')).toHaveCount(2);
+  await page.getByTestId('race-start').click();
+
+  await expect(page.getByTestId('race-saved')).toContainText('Race finished', { timeout: 15_000 });
+  await expect(page.getByTestId('race-saved')).toContainText('28 provider calls');
+  await expect(page.getByTestId('race-saved')).not.toContainText('Saved to');
+  await expect(page.getByText('Publish this run')).toHaveCount(0);
+  expect(asked.slice(0, 2)).toEqual([0, Math.ceil(messages.length / 2)]);
 });

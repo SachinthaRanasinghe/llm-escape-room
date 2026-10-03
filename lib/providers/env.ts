@@ -42,7 +42,19 @@ export function hasProviderKey(
  * one file allowed to read the environment on the harness side.
  */
 export function isLocalRaceEnabled(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
-  return env.NODE_ENV !== 'production' || env.ENABLE_LOCAL_RACE?.trim() === '1';
+  return env.NODE_ENV !== 'production' || env.ENABLE_LOCAL_RACE?.trim() === '1' || isPublicRaceEnabled(env);
+}
+
+/**
+ * Whether this deployment offers the race to the public (`PUBLIC_RACE=1`) —
+ * the hosted site (`docs/decisions/public-race.md`). Public mode changes how a
+ * race runs, not whether a key can leave the server: the keys are still read
+ * only here and only on the server, and the race runs in a Netlify background
+ * function that streams nothing but `RaceMessage`s. It also narrows what may be
+ * raced (free models only, at most one silent repeat) and rate-limits visitors.
+ */
+export function isPublicRaceEnabled(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return env.PUBLIC_RACE?.trim() === '1';
 }
 
 export function readProviderKey(

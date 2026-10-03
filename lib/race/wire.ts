@@ -41,6 +41,26 @@ export interface CatalogueResponse {
   readonly rooms: readonly RoomOption[];
   readonly maxRepeats: number;
   readonly defaultRepeats: number;
+  /**
+   * The public, hosted race (`PUBLIC_RACE=1`): free models only, rate-limited,
+   * nothing saved. The page drops its `.env` and publish hints, and follows the
+   * race by polling `GET /api/race/<id>` instead of reading one long stream.
+   */
+  readonly hosted: boolean;
+}
+
+/** `POST /api/race` on the hosted site: the race was queued; follow it at `GET /api/race/<raceId>`. */
+export interface HostedRaceStarted {
+  readonly raceId: string;
+}
+
+/** `GET /api/race/<raceId>?from=<n>`: the race's messages from index `n` on. */
+export interface HostedRacePoll {
+  readonly messages: readonly RaceMessage[];
+  /** Index to ask for next. */
+  readonly next: number;
+  /** True once a `done` or `error` message has been sent: stop polling. */
+  readonly finished: boolean;
 }
 
 export interface ModelPick {
@@ -90,10 +110,10 @@ export type RaceMessage =
   | {
       readonly type: 'done';
       readonly runId: string;
-      /** Relative to the repo root, e.g. `runs/race-…`. */
-      readonly savedTo: string;
-      /** The CLI line that publishes this run to `/run/<id>`. */
-      readonly publishCommand: string;
+      /** Relative to the repo root, e.g. `runs/race-…`. `null` on the hosted site, which saves nothing. */
+      readonly savedTo: string | null;
+      /** The CLI line that publishes this run to `/run/<id>`. `null` when nothing was saved. */
+      readonly publishCommand: string | null;
       readonly data: ReplayData;
       readonly renderer: RendererSnapshot;
       readonly comparison: ComparisonData;

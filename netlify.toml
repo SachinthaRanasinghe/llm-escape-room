@@ -1,0 +1,14 @@
+# Netlify build for the public site (docs/decisions/public-race.md).
+# Next.js is deployed by Netlify's Next.js runtime, detected automatically.
+# netlify/functions/race-background.mts runs the public race in the background.
+#
+# Set in the Netlify UI (Project configuration → Environment variables), never here:
+#   GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY  — provider keys, server only
+#   PUBLIC_RACE=1                                     — opens /race to visitors
+#   UMAMI_WEBSITE_ID                                  — optional telemetry
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[functions]
+  directory = "netlify/functions"

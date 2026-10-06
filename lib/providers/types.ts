@@ -1,5 +1,6 @@
 import type { Competitor, Provider } from '@/lib/schema/run';
 import type { TransportDeps } from './transport';
+import type { PortableSpec } from './vocabulary';
 
 /**
  * The adapter contract — TICKET-4 (#4).
@@ -24,6 +25,13 @@ export interface TurnRequest {
   /** Identical for both competitors — TICKET-6 builds it once. */
   readonly system: string;
   readonly transcript: readonly TranscriptEntry[];
+  /**
+   * The tools offered on this call. Default `buildPortableSpec()` — the escape
+   * room. Another game passes its own spec built with `buildToolSpec`, and
+   * `equivalence.test.ts` proves it compiles to the same task for every provider
+   * too. The forced tool-calling mode is the same either way.
+   */
+  readonly tools?: PortableSpec;
 }
 
 /**

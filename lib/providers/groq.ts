@@ -168,7 +168,7 @@ export function compileGroqRequest(request: TurnRequest, config: GroqConfig): Re
   return {
     model: config.modelId,
     messages,
-    tools: compileGroqTools(buildPortableSpec()),
+    tools: compileGroqTools(request.tools ?? buildPortableSpec()),
     tool_choice: 'required',
     parallel_tool_calls: false,
     // `null` means provider default — omitted, not sent as null.

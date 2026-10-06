@@ -38,7 +38,8 @@ export interface PortableParam {
 }
 
 export interface PortableTool {
-  readonly name: ActionName;
+  /** A verb of the game being played — `ActionName` for the escape room, the arena's own verbs for the arena. */
+  readonly name: string;
   readonly description: string;
   readonly params: Readonly<Record<string, PortableParam>>;
   readonly required: readonly string[];
@@ -104,9 +105,16 @@ interface JsonSchemaProperty {
   readonly maxLength?: unknown;
 }
 
-function deriveTool(member: (typeof ActionSchema.options)[number]): PortableTool {
-  const name = member.shape.name.value as ActionName;
-  const words = TOOL_DESCRIPTIONS[name];
+/** The words for one game's tools, keyed by verb: the sentence a model reads for each tool and each parameter. */
+export type ToolWords = Readonly<Record<string, { readonly tool: string; readonly params: Readonly<Record<string, string>> }>>;
+
+/** One member of a game's action union: a strict object whose `name` is a literal. */
+type ToolMember = z.ZodObject<{ name: z.ZodLiteral<string> } & z.ZodRawShape>;
+
+function deriveTool(member: ToolMember, allWords: ToolWords): PortableTool {
+  const name = member.shape.name.value as string;
+  const words = allWords[name];
+  if (words === undefined) throw new Error(`no description for tool ${name}`);
   // `name` is the tool itself, not an argument of it. Dropped here rather than
   // with `.omit()`, which TypeScript cannot call across the union's members.
   const json = z.toJSONSchema(member) as {
@@ -148,17 +156,29 @@ function deriveTool(member: (typeof ActionSchema.options)[number]): PortableTool
   });
 }
 
+/**
+ * Derive a frozen portable spec from any game's action union and its words.
+ *
+ * The escape room's spec is `buildPortableSpec()`. Another game (the arena,
+ * `lib/arena/tools.ts`) builds its own here, through the same derivation and the
+ * same checks, and passes it as `TurnRequest.tools` — so `equivalence.test.ts`
+ * can prove its compiled forms the same way.
+ */
+export function buildToolSpec(members: readonly ToolMember[], words: ToolWords): PortableSpec {
+  return Object.freeze({ tools: Object.freeze(members.map((member) => deriveTool(member, words))) });
+}
+
 let memo: PortableSpec | null = null;
 
 /** Derived once from `ActionSchema` and frozen, so no caller can hand one provider an edited copy. */
 export function buildPortableSpec(): PortableSpec {
   if (memo === null) {
-    const tools = ActionSchema.options.map(deriveTool);
-    const names = tools.map((tool) => tool.name);
+    const spec = buildToolSpec(ActionSchema.options as unknown as readonly ToolMember[], TOOL_DESCRIPTIONS);
+    const names = spec.tools.map((tool) => tool.name);
     if (names.join() !== ACTION_NAMES.join()) {
       throw new Error(`tool order ${names.join()} does not match ACTION_NAMES`);
     }
-    memo = Object.freeze({ tools: Object.freeze(tools) });
+    memo = spec;
   }
   return memo;
 }

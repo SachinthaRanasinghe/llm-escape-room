@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cancelHostedRace, PUBLIC_LIMITS, pollHostedRace, runHostedRace, startHostedRace, visitorAddress, visitorId, type Kv } from './hosted';
 import { RaceError } from './index';
 import type { RaceMessage, RaceRequest } from './wire';
+import type { ArenaMessage, ArenaRequest } from './arena-wire';
 
 /**
  * The public race's queue, limits and log, on an in-memory store with the same
@@ -229,5 +230,75 @@ describe('visitors', () => {
     const id = visitorId('203.0.113.7', T0);
     expect(id).not.toContain('203');
     expect(visitorId('203.0.113.7', T0 + 24 * 60 * 60_000)).not.toBe(id);
+  });
+});
+
+describe('the arena on the same queue', () => {
+  const arenaRequest: ArenaRequest = {
+    players: [
+      { provider: 'groq', modelId: 'openai/gpt-oss-120b' },
+      { provider: 'groq', modelId: 'openai/gpt-oss-20b' },
+      { provider: 'gemini', modelId: 'gemini-3-flash' },
+    ],
+    rounds: 10,
+  };
+  const arenaDone: ArenaMessage = { type: 'error', message: 'stopped', savedTo: null, standings: null };
+
+  it('queues an arena job and runs it as a match, never as a race', async () => {
+    const h = harness();
+    const id = await startHostedRace(arenaRequest, { ...h.options(), game: 'arena' });
+    const seen: unknown[] = [];
+    await runHostedRace(id, {
+      kv: h.kv,
+      now: h.now,
+      race: async () => {
+        throw new Error('a match must not run as a race');
+      },
+      arena: async (r, emit) => {
+        seen.push(r);
+        emit(arenaDone);
+      },
+    });
+    expect(seen).toEqual([arenaRequest]);
+    expect(await pollHostedRace(id, 0, { kv: h.kv, now: h.now })).toEqual({ messages: [arenaDone], next: 1, finished: true });
+  });
+
+  it('reports a failed match in the arena\'s own error shape', async () => {
+    const h = harness();
+    const id = await startHostedRace(arenaRequest, { ...h.options(), game: 'arena' });
+    await runHostedRace(id, {
+      kv: h.kv,
+      now: h.now,
+      arena: async () => {
+        throw new Error('internal detail');
+      },
+    });
+    const last = (await pollHostedRace(id, 0, { kv: h.kv, now: h.now }))!.messages.at(-1)!;
+    expect(last).toEqual({ type: 'error', message: 'The match could not be run.', savedTo: null, standings: null });
+  });
+
+  it('runs a job queued before the arena existed as a race', async () => {
+    const h = harness();
+    const id = await startHostedRace(request, h.options());
+    const job = h.kv.data.get(`job/${id}`) as Record<string, unknown>;
+    delete job.game;
+    h.kv.data.set(`job/${id}`, job);
+    let raced = false;
+    await runHostedRace(id, {
+      kv: h.kv,
+      now: h.now,
+      race: async (_r, emit) => {
+        raced = true;
+        emit(done);
+      },
+    });
+    expect(raced).toBe(true);
+  });
+
+  it('shares one lock with the race: a match cannot start while a race runs', async () => {
+    const h = harness();
+    await startHostedRace(request, h.options());
+    const error = await refusal(startHostedRace(arenaRequest, { ...h.options('198.51.100.1'), game: 'arena' }));
+    expect(error.status).toBe(409);
   });
 });

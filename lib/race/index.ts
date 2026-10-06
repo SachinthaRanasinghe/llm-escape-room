@@ -119,7 +119,7 @@ async function catalogueFor(provider: Provider): Promise<ProviderCatalogue> {
   }
 }
 
-async function providerCatalogues(now: number, refresh: boolean): Promise<readonly ProviderCatalogue[]> {
+export async function providerCatalogues(now: number, refresh: boolean): Promise<readonly ProviderCatalogue[]> {
   if (!refresh && cached !== null && now - cached.at < CATALOGUE_TTL_MS) return cached.providers;
   const providers = await Promise.all(PROVIDERS.map(catalogueFor));
   // A failed listing is not cached, so the next load tries again.
@@ -178,7 +178,8 @@ function listRooms(): RoomEntry[] {
 
 /* ── The request ────────────────────────────────────────────────────────── */
 
-const PickSchema = z.strictObject({
+/** One model pick — shared with the arena's request (`lib/race/arena.ts`). */
+export const PickSchema = z.strictObject({
   provider: ProviderSchema,
   modelId: z.string().min(1).max(200).regex(/^[\w.\-/:@]+$/),
 });
@@ -203,7 +204,22 @@ export function parseRaceRequest(raw: unknown): RaceRequest {
 
 let running = false;
 
-function slug(text: string): string {
+/**
+ * The one-at-a-time lock for this server process, shared by the race and the
+ * arena (`lib/race/arena.ts`): two of either on one free-tier key trip the limits
+ * for both. `false` when something is already running.
+ */
+export function takeLocalLock(): boolean {
+  if (running) return false;
+  running = true;
+  return true;
+}
+
+export function releaseLocalLock(): void {
+  running = false;
+}
+
+export function slug(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
@@ -213,7 +229,7 @@ function slug(text: string): string {
     .replace(/-$/, '');
 }
 
-function write(path: string, value: unknown): void {
+export function write(path: string, value: unknown): void {
   mkdirSync(join(path, '..'), { recursive: true });
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -253,7 +269,7 @@ export interface PreparedRace {
   readonly prices: PriceTable;
 }
 
-type ModelPickPriced = ModelPick & { readonly price: CatalogueEntry['price'] };
+export type ModelPickPriced = ModelPick & { readonly price: CatalogueEntry['price'] };
 
 /** `PRICING` with a paid pick's listed price added, so `costOf` prices it instead of calling it unpriced. */
 export function pricesFor(picks: readonly ModelPickPriced[]): PriceTable {
@@ -280,8 +296,7 @@ export async function prepareRace(request: RaceRequest): Promise<PreparedRace> {
   if (!raceEnabled()) throw new RaceError(404, 'the local race page is disabled in this build');
   if (running) throw new RaceError(409, 'a race is already running — wait for it to finish');
   const prepared = await checkRace(request);
-  if (running) throw new RaceError(409, 'a race is already running — wait for it to finish');
-  running = true;
+  if (!takeLocalLock()) throw new RaceError(409, 'a race is already running — wait for it to finish');
   return prepared;
 }
 
@@ -304,8 +319,17 @@ export async function checkRace(request: RaceRequest): Promise<PreparedRace> {
   // Codes only: a rejection's message can quote an answer.
   if (!certified.ok) throw new RaceError(400, `room ${room.id} is not certified: ${certified.rejections.map((r) => r.code).join(', ')}`);
 
+  const priced = await checkPicks([request.a, request.b], hosted);
+  return { request, room, prices: pricesFor(priced) };
+}
+
+/**
+ * Every pick must be in the live catalogue with its key set — and, on the public
+ * site, free. Shared by the race and the arena. Throws `RaceError` (400).
+ */
+export async function checkPicks(picks: readonly ModelPick[], hosted: boolean): Promise<ModelPickPriced[]> {
   const catalogue = await providerCatalogues(Date.now(), false);
-  const priced = [request.a, request.b].map((pick) => {
+  return picks.map((pick) => {
     const provider = catalogue.find((p) => p.provider === pick.provider)!;
     if (!provider.keySet) {
       throw new RaceError(400, hosted ? `${provider.name} is not available on this site` : `${provider.keyVar} is not set in .env`);
@@ -315,8 +339,6 @@ export async function checkRace(request: RaceRequest): Promise<PreparedRace> {
     if (hosted && entry.price !== null) throw new RaceError(400, `${pick.provider}:${pick.modelId} is a paid model — the public race offers free models only`);
     return { ...pick, price: entry.price };
   });
-
-  return { request, room, prices: pricesFor(priced) };
 }
 
 /**
@@ -482,7 +504,7 @@ export async function runRace(
     // kind of failure — its message names no key, the leak scan prints kinds only.
     emit({ type: 'error', message: error instanceof Error ? error.message : String(error), savedTo, comparison: null });
   } finally {
-    running = false;
+    releaseLocalLock();
   }
 }
 

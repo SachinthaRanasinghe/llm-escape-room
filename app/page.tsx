@@ -44,6 +44,7 @@ export default function Page() {
         <div className={styles.navLinks}>
           <Link href="/run/canonical">Watch</Link>
           <Link href="/race">Race</Link>
+          <Link href="/arena">Arena</Link>
           <Link href="/replay">Preview</Link>
         </div>
       </nav>
@@ -68,6 +69,10 @@ export default function Page() {
           <Link href="/race" className={styles.secondary}>
             Race two models
             <span className={styles.tag}>live</span>
+          </Link>
+          <Link href="/arena" className={styles.secondary}>
+            Three-model arena
+            <span className={styles.tag}>new</span>
           </Link>
         </div>
 

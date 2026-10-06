@@ -102,6 +102,10 @@ served statically. A database is a later problem, and a reversible one.
   handlers run the harness on the owner's keys under `next dev`, and 404 in a production build unless
   `ENABLE_LOCAL_RACE=1`. Only free models from the live catalogue can be raced. The published `/run/<id>` path is
   unchanged (`docs/decisions/local-race.md`).
+- **Arena.** A second game, Energy Cores, in `lib/arena/`: three models share one arena and take turns claiming or
+  stealing five cores, each move earned by answering a question from a committed, machine-checked bank. Its own
+  engine is the sole judge, and it plays on the same provider adapters with its own tool spec, proven equivalent by
+  the same test. `/arena` is gated, rate-limited and queued exactly like `/race` (`docs/decisions/arena.md`).
 
 ### Other calls
 

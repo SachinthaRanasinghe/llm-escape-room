@@ -11,6 +11,7 @@
   --rule: var(--line);
   --lane-a: #f2a65a;
   --lane-b: #4fd1c5;
+  --lane-c: #b794f4;
 
   min-height: 100vh;
   background: var(--bg);
@@ -184,6 +185,10 @@
 
 .picker[data-lane='b'] {
   --lane: var(--lane-b);
+}
+
+.picker[data-lane='c'] {
+  --lane: var(--lane-c);
 }
 
 .pickerLabel,

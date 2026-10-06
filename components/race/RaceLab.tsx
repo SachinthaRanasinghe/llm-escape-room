@@ -5,11 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { LivePlayer } from '@/components/scene/LivePlayer';
 import { ReplayPlayer } from '@/components/scene/ReplayPlayer';
 import type {
-  CatalogueEntry,
   CatalogueResponse,
   HostedRacePoll,
   HostedRaceStarted,
-  ModelPick,
   ProviderCatalogue,
   RaceMessage,
   RacePhase,
@@ -17,6 +15,8 @@ import type {
 import type { ReplayBeat, ReplayData } from '@/lib/replay';
 import type { ComparisonData } from '@/lib/comparison';
 import type { EndReason } from '@/lib/schema/run';
+import { ModelSelect } from './ModelSelect';
+import { decodePick, encodePick, priceLabel } from './picks';
 import styles from './race.module.css';
 
 /** How often the hosted page asks for new messages. Beats that arrive together play at the live player's catch-up pace. */
@@ -79,27 +79,6 @@ function liveData({ started, beats, ended }: Live): ReplayData {
       maxActions: started.budget.maxActions,
     })),
   };
-}
-
-const PICK_SEPARATOR = '|';
-
-function encodePick(pick: ModelPick): string {
-  return `${pick.provider}${PICK_SEPARATOR}${pick.modelId}`;
-}
-
-function decodePick(value: string): ModelPick | null {
-  const at = value.indexOf(PICK_SEPARATOR);
-  if (at < 1) return null;
-  return { provider: value.slice(0, at) as ModelPick['provider'], modelId: value.slice(at + 1) };
-}
-
-function usd(perMTok: number): string {
-  return `$${Number(perMTok.toFixed(2))}`;
-}
-
-/** e.g. "$3 in / $15 out per million tokens". */
-function priceLabel(price: NonNullable<CatalogueEntry['price']>): string {
-  return `${usd(price.promptPerMTok)} in / ${usd(price.completionPerMTok)} out per million tokens`;
 }
 
 /** The first two raceable FREE models, preferring two different providers so the default is a cross-lab duel. Never a paid default. */
@@ -528,57 +507,6 @@ export function RaceLab() {
         )}
       </div>
     </main>
-  );
-}
-
-function ModelSelect({
-  id,
-  label,
-  lane,
-  value,
-  onChange,
-  providers,
-}: {
-  id: string;
-  label: string;
-  lane: 'a' | 'b';
-  value: string;
-  onChange: (value: string) => void;
-  providers: readonly ProviderCatalogue[];
-}) {
-  return (
-    <label className={styles.picker} data-lane={lane} htmlFor={id}>
-      <span className={styles.pickerLabel}>{label}</span>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} data-testid={`${id}-select`}>
-        <option value="" disabled>
-          Choose a model…
-        </option>
-        {providers.flatMap((provider) =>
-          (['free', 'paid'] as const).map((kind) => {
-            const models = provider.models.filter((m) => (m.price === null) === (kind === 'free'));
-            if (models.length === 0) return null;
-            const name = kind === 'paid' ? `${provider.name} — paid` : provider.name;
-            return (
-              <optgroup
-                key={`${provider.provider}-${kind}`}
-                label={provider.keySet ? `${name} (${models.length})` : `${name} — set ${provider.keyVar} to use`}
-              >
-                {models.map((model) => (
-                  <option
-                    key={model.modelId}
-                    value={encodePick({ provider: provider.provider, modelId: model.modelId })}
-                    disabled={!provider.keySet}
-                  >
-                    {model.label === model.modelId ? model.modelId : `${model.label} — ${model.modelId}`}
-                    {model.price !== null && ` · ${usd(model.price.promptPerMTok)}/${usd(model.price.completionPerMTok)} per M`}
-                  </option>
-                ))}
-              </optgroup>
-            );
-          }),
-        )}
-      </select>
-    </label>
   );
 }
 

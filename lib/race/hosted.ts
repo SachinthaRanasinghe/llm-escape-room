@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { getStore } from '@netlify/blobs';
 
+import { checkArena, runArena } from './arena';
+import type { ArenaMessage, ArenaRequest } from './arena-wire';
 import { checkRace, RaceError, runRace, type PreparedRace } from './index';
-import type { HostedRacePoll, RaceMessage, RaceRequest } from './wire';
+import type { RaceMessage, RaceRequest } from './wire';
 
 /**
  * The public race on the hosted site (`PUBLIC_RACE=1`) —
@@ -27,6 +29,12 @@ import type { HostedRacePoll, RaceMessage, RaceRequest } from './wire';
  * `RaceMessage`s — the same leak-scanned beats and comparisons the local stream
  * sends — and the request a visitor already sent. Provider errors are redacted
  * by the transport before they become messages.
+ *
+ * ── Two games, one queue ───────────────────────────────────────────────────
+ * The Energy Cores arena (`lib/race/arena.ts`) runs through the same queue,
+ * lock and limits: a job names its game, and a match counts as one race against
+ * the visitor and daily caps. A job queued before the arena existed has no game
+ * and is a race.
  *
  * ── Abuse limits ───────────────────────────────────────────────────────────
  * Anyone can reach this page, and every race spends the owner's free quota.
@@ -80,15 +88,29 @@ export function netlifyKv(): Kv {
 
 type JobStatus = 'queued' | 'running' | 'finished';
 
+export type HostedGame = 'race' | 'arena';
+
+/** What a hosted job's log holds: the messages of whichever game it runs. */
+export type HostedMessage = RaceMessage | ArenaMessage;
+
+/** `GET /api/race/<id>` and `GET /api/arena/<id>`: the job's messages from index `n` on. */
+export interface HostedPoll {
+  readonly messages: readonly HostedMessage[];
+  readonly next: number;
+  readonly finished: boolean;
+}
+
 interface Job {
-  readonly request: RaceRequest;
+  /** Absent on a job queued before the arena existed: a race. */
+  readonly game?: HostedGame;
+  readonly request: RaceRequest | ArenaRequest;
   readonly status: JobStatus;
   readonly createdAt: number;
   readonly cancel: boolean;
 }
 
 interface Log {
-  readonly messages: readonly RaceMessage[];
+  readonly messages: readonly HostedMessage[];
   readonly updatedAt: number;
   readonly finished: boolean;
 }
@@ -178,13 +200,15 @@ async function releaseLock(kv: Kv, raceId: string): Promise<void> {
 /* ── 1. Start ───────────────────────────────────────────────────────────── */
 
 export interface StartOptions {
+  /** Default `race`. */
+  readonly game?: HostedGame;
   readonly kv: Kv;
   readonly address: string;
   /** Starts the background function for this race. Throws if it could not be started. */
   readonly kick: (raceId: string) => Promise<void>;
   readonly now?: () => number;
-  /** `checkRace` — injectable so tests need no live catalogue. */
-  readonly check?: (request: RaceRequest) => Promise<unknown>;
+  /** `checkRace` or `checkArena`, by game — injectable so tests need no live catalogue. */
+  readonly check?: (request: RaceRequest | ArenaRequest) => Promise<unknown>;
 }
 
 /**
@@ -193,10 +217,12 @@ export interface StartOptions {
  * actually queued.
  */
 export async function startHostedRace(
-  request: RaceRequest,
-  { kv, address, kick, now = Date.now, check = checkRace }: StartOptions,
+  request: RaceRequest | ArenaRequest,
+  { game = 'race', kv, address, kick, now = Date.now, check }: StartOptions,
 ): Promise<string> {
-  await check(request);
+  if (check !== undefined) await check(request);
+  else if (game === 'arena') await checkArena(request as ArenaRequest);
+  else await checkRace(request as RaceRequest);
 
   const at = now();
   const visitor = visitorId(address, at);
@@ -213,7 +239,7 @@ export async function startHostedRace(
   }
 
   try {
-    await kv.set(jobKey(raceId), { request, status: 'queued', createdAt: at, cancel: false } satisfies Job);
+    await kv.set(jobKey(raceId), { game, request, status: 'queued', createdAt: at, cancel: false } satisfies Job);
     await kv.set(logKey(raceId), { messages: [], updatedAt: at, finished: false } satisfies Log);
     await increment(kv, dayKey(at));
     await increment(kv, visitorKey(visitor, at));
@@ -241,6 +267,8 @@ export interface RunOptions {
   readonly now?: () => number;
   /** `checkRace` then `runRace` — injectable so tests call no model. */
   readonly race?: (request: RaceRequest, emit: (message: RaceMessage) => void, signal: AbortSignal) => Promise<void>;
+  /** `checkArena` then `runArena` — likewise. */
+  readonly arena?: (request: ArenaRequest, emit: (message: ArenaMessage) => void, signal: AbortSignal) => Promise<void>;
 }
 
 async function realRace(request: RaceRequest, emit: (message: RaceMessage) => void, signal: AbortSignal): Promise<void> {
@@ -249,15 +277,27 @@ async function realRace(request: RaceRequest, emit: (message: RaceMessage) => vo
   await runRace(prepared, emit, signal, { persist: false });
 }
 
-export async function runHostedRace(raceId: string, { kv, now = Date.now, race = realRace }: RunOptions): Promise<void> {
+async function realArena(request: ArenaRequest, emit: (message: ArenaMessage) => void, signal: AbortSignal): Promise<void> {
+  await runArena(await checkArena(request), emit, signal, { persist: false });
+}
+
+/** A game's `error` message: the race's carries a comparison, the arena's standings. */
+function errorMessage(game: HostedGame, message: string): HostedMessage {
+  return game === 'arena'
+    ? { type: 'error', message, savedTo: null, standings: null }
+    : { type: 'error', message, savedTo: null, comparison: null };
+}
+
+export async function runHostedRace(raceId: string, { kv, now = Date.now, race = realRace, arena = realArena }: RunOptions): Promise<void> {
   if (!isRaceId(raceId)) return;
   // Claim: only a queued job runs, and only once — a second kick finds it running.
   const found = await kv.get<Job>(jobKey(raceId));
   if (found === null || found.value.status !== 'queued') return;
   if (!(await kv.set(jobKey(raceId), { ...found.value, status: 'running' } satisfies Job, { onlyIfMatch: found.etag }))) return;
   const { request } = found.value;
+  const game = found.value.game ?? 'race';
 
-  const messages: RaceMessage[] = [];
+  const messages: HostedMessage[] = [];
   let finished = false;
   let writing: Promise<void> = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -268,7 +308,7 @@ export async function runHostedRace(raceId: string, { kv, now = Date.now, race =
     writing = writing.then(() => kv.set(logKey(raceId), snapshot).then(() => undefined)).catch(() => undefined);
     return writing;
   };
-  const emit = (message: RaceMessage) => {
+  const emit = (message: HostedMessage) => {
     messages.push(message);
     if (message.type === 'done' || message.type === 'error') finished = true;
     if (timer === null) timer = setTimeout(() => void flush(), FLUSH_MS);
@@ -285,13 +325,14 @@ export async function runHostedRace(raceId: string, { kv, now = Date.now, race =
   }, CANCEL_CHECK_MS);
 
   try {
-    await race(request, emit, abort.signal);
+    if (game === 'arena') await arena(request as ArenaRequest, emit, abort.signal);
+    else await race(request as RaceRequest, emit, abort.signal);
   } catch (error) {
-    const message = error instanceof RaceError ? error.message : 'The race could not be run.';
-    emit({ type: 'error', message, savedTo: null, comparison: null });
+    const message = error instanceof RaceError ? error.message : `The ${game === 'arena' ? 'match' : 'race'} could not be run.`;
+    emit(errorMessage(game, message));
   } finally {
     clearInterval(watch);
-    if (!finished) emit({ type: 'error', message: 'The race ended without a result.', savedTo: null, comparison: null });
+    if (!finished) emit(errorMessage(game, `The ${game === 'arena' ? 'match' : 'race'} ended without a result.`));
     await flush();
     const job = await kv.get<Job>(jobKey(raceId)).catch(() => null);
     if (job !== null) await kv.set(jobKey(raceId), { ...job.value, status: 'finished' } satisfies Job).catch(() => {});
@@ -306,7 +347,7 @@ export async function pollHostedRace(
   raceId: string,
   from: number,
   { kv, now = Date.now }: { readonly kv: Kv; readonly now?: () => number },
-): Promise<HostedRacePoll | null> {
+): Promise<HostedPoll | null> {
   if (!isRaceId(raceId)) return null;
   const log = (await kv.get<Log>(logKey(raceId)))?.value;
   if (log === undefined) return null;
@@ -320,7 +361,7 @@ export async function pollHostedRace(
     (job.status === 'queued' && now() - job.createdAt > PUBLIC_LIMITS.queueStaleMs) ||
     (job.status !== 'queued' && now() - log.updatedAt > PUBLIC_LIMITS.runStaleMs);
   if (stale) {
-    const dead: RaceMessage = { type: 'error', message: 'The race stopped responding. Nothing was published — start a new race.', savedTo: null, comparison: null };
+    const dead = errorMessage(job?.game ?? 'race', 'The race stopped responding. Nothing was published — start a new race.');
     return { messages: [...messages, dead], next: log.messages.length + 1, finished: true };
   }
   return { messages, next: log.messages.length, finished: false };

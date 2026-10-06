@@ -135,6 +135,17 @@ is open to every visitor on the deployed site: free models only, at most one sil
 (`netlify/functions/race-background.mts`) and the page follows it by polling, because a streamed response is cut off
 after 60 seconds. Keys stay on the server; nothing is saved. See `docs/decisions/public-race.md`.
 
+**Energy Cores — a three-model arena.** Open `/arena`, pick three models, and they fight over five Energy Cores: one
+each to start, two in the centre. On its turn a model claims a centre core, steals one from a rival, or passes, but a
+claim only works if it then answers a medium question correctly and a steal a hard one (math, code, algorithms, logic,
+SQL, computer science). A player who loses its last core is out. Most cores after 10 rounds wins, and an equal count is
+a tie. The questions come from a committed bank in `lib/arena/questions/` that grades by code. Its test runs every code
+snippet and recomputes every answer it can. The engine in `lib/arena/` is the only judge, the three models get identical
+tools (proven by the same equivalence test), and the page is gated, rate-limited and queued exactly like `/race`.
+Each turn is one or two model calls, so a 10-round match can take up to 60. From the terminal:
+`node --env-file-if-exists=.env --import tsx scripts/arena.mts --a <provider>:<model> --b … --c …`. See
+`docs/decisions/arena.md`.
+
 The schemas are **v0 and deliberately unpinned**: the room spec and the event log are one-way
 doors, so they are promoted to v1 only once the gate spike has settled which puzzle substrate
 actually separates two models. Expect exactly one migration.

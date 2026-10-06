@@ -211,7 +211,7 @@ export function compileGeminiRequest(request: TurnRequest, config: GeminiConfig)
   return {
     systemInstruction: { parts: [{ text: request.system }] },
     contents,
-    tools: [compileGeminiTools(buildPortableSpec())],
+    tools: [compileGeminiTools(request.tools ?? buildPortableSpec())],
     toolConfig: { functionCallingConfig: { mode: 'ANY' } },
     ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
   };

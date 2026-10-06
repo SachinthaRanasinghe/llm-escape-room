@@ -7,6 +7,8 @@ import { compileOpenRouterRequest, decodeOpenRouterResponse } from './openrouter
 import { buildPortableSpec, type PortableSpec } from './vocabulary';
 import { findSpecDrift } from './equivalence';
 import type { TurnRequest } from './types';
+import { ANSWER_TOOLS, DECISION_TOOLS } from '@/lib/arena/tools';
+import { ArenaActionSchema, ArenaAnswerSchema } from '@/lib/arena/schema';
 import { geminiFunctionCallResponse, groqToolCallResponse } from './testing';
 
 /**
@@ -294,5 +296,63 @@ describe('OpenRouter is held to the same task', () => {
       const viaGemini = decodeGeminiResponse(200, geminiFunctionCallResponse([{ functionCall: { name, args } }]), { callIndex: 0 });
       expect(viaOpenRouter.rawAction).toEqual(viaGemini.rawAction);
     }
+  });
+});
+
+/**
+ * The Energy Cores arena (`lib/arena/`) is a second game on the same adapters:
+ * it passes its own tools on `TurnRequest.tools`. The same proof applies to both
+ * of its tool sets — and a request that names no tools must still be the room.
+ */
+describe('the arena tool specs describe the same task', () => {
+  const config = { modelId: 'x', params: { temperature: null, topP: null } };
+  const transcript: TurnRequest['transcript'] = [{ kind: 'user', text: 'Round 1 of 10. You are player-a.' }];
+
+  for (const [label, spec] of [['decision', DECISION_TOOLS], ['answer', ANSWER_TOOLS]] as const) {
+    describe(label, () => {
+      const request: TurnRequest = { system: 'Energy Cores.', transcript, tools: spec };
+      const groqBody = compileGroqRequest(request, config);
+      const geminiBody = compileGeminiRequest(request, config);
+      const openRouterBody = compileOpenRouterRequest(request, config);
+      const groqSpec = normaliseGroqTools(groqBody.tools);
+      const geminiSpec = normaliseGeminiTools((geminiBody.tools as unknown[])[0]);
+
+      it('source ↔ Groq, source ↔ Gemini, Groq ↔ Gemini: zero drift', () => {
+        expect(findSpecDrift(spec, groqSpec)).toEqual([]);
+        expect(findSpecDrift(spec, geminiSpec)).toEqual([]);
+        expect(findSpecDrift(groqSpec, geminiSpec)).toEqual([]);
+      });
+
+      it('OpenRouter sends exactly what Groq sends', () => {
+        expect(openRouterBody).toEqual(groqBody);
+      });
+
+      it('forces exactly one tool call on every provider', () => {
+        expect(groqBody.tool_choice).toBe('required');
+        expect(groqBody.parallel_tool_calls).toBe(false);
+        expect((geminiBody.toolConfig as { functionCallingConfig: { mode: string } }).functionCallingConfig.mode).toBe('ANY');
+      });
+
+      it('offers only this phase\'s tools — never the room\'s', () => {
+        const names = spec.tools.map((t) => t.name);
+        expect(groqSpec.tools.map((t) => t.name)).toEqual(names);
+        for (const name of names) expect(source.tools.map((t) => t.name)).not.toContain(name);
+      });
+    });
+  }
+
+  it('derives its params from the arena schemas, as the room\'s spec derives from ActionSchema', () => {
+    expect(DECISION_TOOLS.tools.map((t) => t.name)).toEqual(ArenaActionSchema.options.map((o) => o.shape.name.value));
+    expect(ANSWER_TOOLS.tools.map((t) => t.name)).toEqual(ArenaAnswerSchema.options.map((o) => o.shape.name.value));
+    const steal = DECISION_TOOLS.tools.find((t) => t.name === 'steal')!;
+    expect([...steal.required].sort()).toEqual(['intent', 'targetId']);
+    const answer = ANSWER_TOOLS.tools[0]!;
+    expect(answer.params.answer!.maxLength).toBe(200);
+  });
+
+  it('a request that names no tools is still the escape room', () => {
+    const request: TurnRequest = { system: 'Room.', transcript };
+    expect(findSpecDrift(source, normaliseGroqTools(compileGroqRequest(request, config).tools))).toEqual([]);
+    expect(findSpecDrift(source, normaliseGeminiTools((compileGeminiRequest(request, config).tools as unknown[])[0]))).toEqual([]);
   });
 });

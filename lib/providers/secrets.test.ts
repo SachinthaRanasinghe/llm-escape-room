@@ -71,9 +71,11 @@ const ENDPOINT = /api\.groq\.com|generativelanguage\.googleapis\.com|openrouter\
 const KEY_SHAPED = [/\bgsk_[A-Za-z0-9]{20,}/, /\bAIza[0-9A-Za-z_-]{30,}/, /\bAQ\.[0-9A-Za-z_-]{30,}/, /\bsk-or-v1-[0-9a-f]{20,}/];
 
 /** Any import of the race module; `lib/race/wire` is matched separately. */
-const RACE_IMPORT = /from\s+['"](@\/lib\/race|(\.\.\/)+race)(\/index|\/hosted)?['"]/;
-/** Who may hold the race module: the server page that gates `/race`, and the route handlers. */
-const RACE_HOLDERS = /^app\/(race\/page\.tsx|api\/)/;
+const RACE_IMPORT = /from\s+['"](@\/lib\/race|(\.\.\/)+race)(\/index|\/hosted|\/arena)?['"]/;
+/** Who may hold the race module: the server pages that gate `/race` and `/arena`, and the route handlers. */
+const RACE_HOLDERS = /^app\/(race\/page\.tsx|arena\/page\.tsx|api\/)/;
+/** What `lib/arena` may take from the providers: types, `ProviderError` (`/types`) and the tool-spec builder (`/vocabulary`). */
+const ARENA_PROVIDER_IMPORT = /^import\s+(type\s+)?\{[^}]*\}\s+from\s+['"]@\/lib\/providers(\/[\w-]+)?['"];?$/gm;
 
 describe('the sweep sees the codebase', () => {
   it('reads a realistic number of files, including the one allowed env read', () => {
@@ -108,13 +110,36 @@ describe('secrets stay on the harness side', () => {
     expect(holders.filter((path) => !RACE_HOLDERS.test(path))).toEqual([]);
   });
 
-  it('gives the browser only types from the race module', () => {
-    const wire = sources.find((s) => s.path === 'lib/race/wire.ts');
+  it.each(['lib/race/wire.ts', 'lib/race/arena-wire.ts'])('gives the browser only types from the race module: %s', (path) => {
+    const wire = sources.find((s) => s.path === path);
     expect(wire).toBeDefined();
     const imports = wire!.text.match(/^import\b.*$/gm) ?? [];
     expect(imports.length).toBeGreaterThan(0);
-    for (const line of imports) expect(line, 'lib/race/wire.ts must import types only').toMatch(/^import type /);
-    expect(/^export (const|function|class|let)/m.test(wire!.text), 'lib/race/wire.ts must export types only').toBe(false);
+    for (const line of imports) expect(line, `${path} must import types only`).toMatch(/^import type /);
+    expect(/^export (const|function|class|let)/m.test(wire!.text), `${path} must export types only`).toBe(false);
+  });
+
+  /*
+   * The arena (`lib/arena/`) drives models the way `lib/harness` does, so it may
+   * hold provider TYPES — but never a transport, an adapter factory or a key.
+   * `lib/arena/boundary.test.ts` asserts the rest of its purity.
+   */
+  it('lets the arena take only types, ProviderError and the tool-spec builder from the providers', () => {
+    const arena = sources.filter((s) => s.path.startsWith('lib/arena/'));
+    expect(arena.length).toBeGreaterThan(5);
+    const offending: string[] = [];
+    for (const source of arena) {
+      const providerLines = source.text.split('\n').filter((line) => PROVIDER_IMPORT.test(line));
+      const allowed = [...source.text.matchAll(ARENA_PROVIDER_IMPORT)].filter((m) => m[1] !== undefined || ['/types', '/vocabulary'].includes(m[2] ?? ''));
+      if (providerLines.length !== allowed.length) offending.push(source.path);
+    }
+    expect(offending).toEqual([]);
+  });
+
+  it('keeps the arena\'s server module out of the browser', () => {
+    // The arena's index exports `runMatch`; the browser may take its types, never its values.
+    const VALUE_IMPORT = /^import\s+\{[^}]*\}\s+from\s+['"]@\/lib\/arena(\/index|\/match)?['"]/m;
+    expect(sources.filter((s) => s.path.startsWith('components/') && VALUE_IMPORT.test(s.text)).map((s) => s.path)).toEqual([]);
   });
 
   it.each(['fixtures', 'published'])('commits no URL and nothing key-shaped in %s JSON', (dir) => {
@@ -254,5 +279,10 @@ describe('the positive control', () => {
     expect(RACE_HOLDERS.test('app/api/race/route.ts')).toBe(true);
     expect(RACE_HOLDERS.test('components/race/RaceLab.tsx')).toBe(false);
     expect(RACE_HOLDERS.test('app/run/[id]/page.tsx')).toBe(false);
+    expect(RACE_IMPORT.test(`import { runArena } from '@/lib/race/arena';`)).toBe(true);
+    expect(RACE_IMPORT.test(`import type { ArenaMessage } from '@/lib/race/arena-wire';`)).toBe(false);
+    expect(RACE_HOLDERS.test('app/arena/page.tsx')).toBe(true);
+    expect(RACE_HOLDERS.test('app/api/arena/route.ts')).toBe(true);
+    expect(RACE_HOLDERS.test('components/arena/ArenaLab.tsx')).toBe(false);
   });
 });
